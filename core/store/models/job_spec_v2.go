@@ -15,6 +15,7 @@ type (
 		OffchainreportingOracleSpecID int32
 		OffchainreportingOracleSpec   *OffchainReportingOracleSpec `gorm:"save_association:true;association_autoupdate:true;association_autocreate:true"`
 		PipelineSpecID                int32
+		Name                          string`toml:"name" gorm:"type:text;unique;not null"`
 	}
 
 	OffchainReportingOracleSpec struct {
@@ -22,7 +23,6 @@ type (
 		ContractAddress                        EIP55Address   `toml:"contractAddress"`
 		P2PPeerID                              PeerID         `toml:"p2pPeerID"         gorm:"column:p2p_peer_id"`
 		P2PBootstrapPeers                      pq.StringArray `toml:"p2pBootstrapPeers" gorm:"column:p2p_bootstrap_peers;type:text[]"`
-		Name                                   string         `toml:"name" gorm:"column:name;type:text"`
 		IsBootstrapPeer                        bool           `toml:"isBootstrapPeer"`
 		EncryptedOCRKeyBundleID                Sha256Hash     `toml:"keyBundleID"                 gorm:"type:bytea"`
 		MonitoringEndpoint                     string         `toml:"monitoringEndpoint"`

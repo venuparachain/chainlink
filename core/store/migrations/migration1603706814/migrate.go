@@ -3,7 +3,7 @@ package migration1603706814
 import "github.com/jinzhu/gorm"
 
 const up = `
-ALTER TABLE offchainreporting_oracle_specs
+ALTER TABLE jobs
 ADD COLUMN name text UNIQUE NOT NULL;
 `
 

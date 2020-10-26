@@ -1,3 +1,4 @@
+name               = "Job with invalid key"
 type               = "offchainreporting"
 schemaVersion      = 1
 contractAddress    = "0x613a38AC1659769640aaE063C651F48E0250454C"
