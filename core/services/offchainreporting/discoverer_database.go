@@ -7,11 +7,11 @@ import (
 	"github.com/lib/pq"
 	p2ppeer "github.com/libp2p/go-libp2p-core/peer"
 	"github.com/pkg/errors"
-	ocrnetworking "github.com/smartcontractkit/libocr/networking"
+	"github.com/smartcontractkit/libocr/networking/types"
 	"go.uber.org/multierr"
 )
 
-var _ ocrnetworking.DiscovererDatabase = &DiscovererDatabase{}
+var _ types.DiscovererDatabase = &DiscovererDatabase{}
 
 type DiscovererDatabase struct {
 	db     *sql.DB
@@ -30,7 +30,7 @@ func NewDiscovererDatabase(db *sql.DB, peerID p2ppeer.ID) *DiscovererDatabase {
 func (d *DiscovererDatabase) StoreAnnouncement(ctx context.Context, peerID string, ann []byte) error {
 	_, err := d.db.ExecContext(ctx, `
 INSERT INTO offchainreporting_discoverer_announcements (local_peer_id, remote_peer_id, ann, created_at, updated_at)
-VALUES ($1,$2,$3,NOW(),NOW()) ON CONFLICT (local_peer_id, remote_peer_id) DO UPDATE SET 
+VALUES ($1,$2,$3,NOW(),NOW()) ON CONFLICT (local_peer_id, remote_peer_id) DO UPDATE SET
 ann = EXCLUDED.ann,
 updated_at = EXCLUDED.updated_at
 ;`, d.peerID, peerID, ann)

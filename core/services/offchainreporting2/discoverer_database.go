@@ -7,11 +7,11 @@ import (
 	"github.com/lib/pq"
 	p2ppeer "github.com/libp2p/go-libp2p-core/peer"
 	"github.com/pkg/errors"
-	ocrnetworking "github.com/smartcontractkit/libocr/networking"
+	"github.com/smartcontractkit/libocr/networking/types"
 	"go.uber.org/multierr"
 )
 
-var _ ocrnetworking.DiscovererDatabase = &DiscovererDatabase{}
+var _ types.DiscovererDatabase = &DiscovererDatabase{}
 
 type DiscovererDatabase struct {
 	db     *sql.DB

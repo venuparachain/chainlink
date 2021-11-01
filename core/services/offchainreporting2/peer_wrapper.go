@@ -176,8 +176,8 @@ func (p *SingletonPeerWrapper) Start() error {
 		}
 		p.Peer = peerAdapter{
 			peer,
-			peer.GenOCRBinaryNetworkEndpointFactory(),
-			peer.GenOCRBootstrapperFactory(),
+			peer.OCR2BinaryNetworkEndpointFactory(),
+			peer.OCR2BootstrapperFactory(),
 		}
 		return p.pstoreWrapper.Start()
 	})

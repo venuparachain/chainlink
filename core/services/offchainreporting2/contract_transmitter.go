@@ -55,7 +55,7 @@ func NewOCRContractTransmitter(
 	}
 }
 
-func (oc *OCRContractTransmitter) Transmit(ctx context.Context, reportCtx ocrtypes.ReportContext, report ocrtypes.Report, signatures []ocrtypes.AttributedOnChainSignature) error {
+func (oc *OCRContractTransmitter) Transmit(ctx context.Context, reportCtx ocrtypes.ReportContext, report ocrtypes.Report, signatures []ocrtypes.AttributedOnchainSignature) error {
 	var rs [][32]byte
 	var ss [][32]byte
 	var vs [32]byte

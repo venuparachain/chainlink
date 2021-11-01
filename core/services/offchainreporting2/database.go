@@ -286,7 +286,7 @@ WHERE offchainreporting2_oracle_spec_id = $1 AND config_digest = $2
 		for index := 0; index < len(signatures); index += 2 {
 			signature := signatures[index]
 			signer, _ := binary.Varint(signatures[index+1])
-			sig := ocrtypes.AttributedOnChainSignature{
+			sig := ocrtypes.AttributedOnchainSignature{
 				Signature: signature,
 				Signer:    ocrcommon.OracleID(signer),
 			}

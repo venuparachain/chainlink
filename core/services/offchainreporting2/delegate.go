@@ -194,7 +194,7 @@ func (d Delegate) ServicesForSpec(jobSpec job.Job) (services []job.Service, err 
 	}
 
 	if spec.IsBootstrapPeer {
-		bootstrapper, err := ocr.NewBootstrapNode(ocr.BootstrapNodeArgs{
+		bootstrapper, err := ocr.NewBootstrapper(ocr.BootstrapperArgs{
 			BootstrapperFactory:    peerWrapper.Peer,
 			ContractConfigTracker:  tracker,
 			Database:               ocrdb,
