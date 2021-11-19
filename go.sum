@@ -1389,8 +1389,8 @@ github.com/smartcontractkit/chainlink v0.9.5-0.20201207211610-6c7fee37d5b7/go.mo
 github.com/smartcontractkit/go-ethereum v1.10.9-0.20210909134823-a177d470d620 h1:8ZAewArvGdGAMevPSRTcX6YIdEvi00MWGDZ6T9fRPq8=
 github.com/smartcontractkit/go-ethereum v1.10.9-0.20210909134823-a177d470d620/go.mod h1:pJNuIUYfX5+JKzSD/BTdNsvJSZ1TJqmz0dVyXMAbf6M=
 github.com/smartcontractkit/libocr v0.0.0-20201203233047-5d9b24f0cbb5/go.mod h1:bfdSuLnBWCkafDvPGsQ1V6nrXhg046gh227MKi4zkpc=
-github.com/smartcontractkit/libocr v0.0.0-20211027142358-580c720a7bcf h1:SoZVLf285F2SWsFgI+AzZa/hixjb37YL/yjo9olEV4U=
-github.com/smartcontractkit/libocr v0.0.0-20211027142358-580c720a7bcf/go.mod h1:Lcv1Trj9QBPXI7nf28zOqOnjaE5v/DOK7+3ctGA77jE=
+github.com/smartcontractkit/libocr v0.0.0-20211117215336-6c9726817b2d h1:tGh+Efa58KmYqWLzD22ppPcoGpsJmG7b4vinBZzDpP8=
+github.com/smartcontractkit/libocr v0.0.0-20211117215336-6c9726817b2d/go.mod h1:nq3crM3wVqnyMlM/4ZydTuJ/WyCapAsOt7P94oRgSPg=
 github.com/smartcontractkit/sqlx v1.3.5-0.20210805004948-4be295aacbeb h1:OMaBUb4X9IFPLbGbCHsMU+kw/BPCrewaVwWGIBc0I4A=
 github.com/smartcontractkit/sqlx v1.3.5-0.20210805004948-4be295aacbeb/go.mod h1:HNUu4cJekUdsJbwRBCiOybtkPJEfGRELQPe2tkoDEyk=
 github.com/smartcontractkit/wsrpc v0.3.4 h1:6pG+1BIZPMYcbqhLvTPl0wKzys01msAib9iG1pn/nNM=
@@ -1869,7 +1869,6 @@ golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20210420205809-ac73e9fd8988/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20210423082822-04245dca01da/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20210510120138-977fb7262007/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.0.0-20210611083646-a4fc73990273/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20210816183151-1e6c022a8912 h1:uCLL3g5wH2xjxVREVuAbP9JM5PPKjRbXKRa6IBjkzmU=
 golang.org/x/sys v0.0.0-20210816183151-1e6c022a8912/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
