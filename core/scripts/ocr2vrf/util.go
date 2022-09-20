@@ -297,6 +297,38 @@ func requestRandomnessCallback(
 	return requestID
 }
 
+func requestRandomnessCallbackBatch(
+	e helpers.Environment,
+	consumerAddress string,
+	numWords uint16,
+	subID uint64,
+	confDelay *big.Int,
+	callbackGasLimit uint32,
+	args []byte,
+	batchSize *big.Int,
+) (requestID *big.Int) {
+	consumer := newVRFBeaconCoordinatorConsumer(common.HexToAddress(consumerAddress), e.Ec)
+
+	tx, err := consumer.TestRequestRandomnessFulfillmentBatch(e.Owner, subID, numWords, confDelay, callbackGasLimit, args, batchSize)
+	helpers.PanicErr(err)
+	receipt := helpers.ConfirmTXMined(context.Background(), e.Ec, tx, e.ChainID, "TestRequestRandomnessFulfillment")
+
+	periodBlocks, err := consumer.IBeaconPeriodBlocks(nil)
+	helpers.PanicErr(err)
+
+	blockNumber := receipt.BlockNumber
+	periodOffset := new(big.Int).Mod(blockNumber, periodBlocks)
+	nextBeaconOutputHeight := new(big.Int).Sub(new(big.Int).Add(blockNumber, periodBlocks), periodOffset)
+
+	fmt.Println("nextBeaconOutputHeight: ", nextBeaconOutputHeight)
+
+	requestID, err = consumer.SRequestsIDs(nil, nextBeaconOutputHeight, confDelay)
+	helpers.PanicErr(err)
+	fmt.Println("requestID: ", requestID)
+
+	return requestID
+}
+
 func redeemRandomnessFromConsumer(e helpers.Environment, consumerAddress string, requestID *big.Int, numWords int64) {
 	consumer := newVRFBeaconCoordinatorConsumer(common.HexToAddress(consumerAddress), e.Ec)
 

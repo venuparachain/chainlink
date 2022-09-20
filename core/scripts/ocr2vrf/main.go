@@ -157,17 +157,17 @@ func main() {
 		schedule := cmd.String("schedule", "", "comma-separted list of transmission schedule")
 		f := cmd.Uint("f", 1, "number of faulty oracles")
 		// TODO: Adjust default delta* and maxDuration* values below after benchmarking latency
-		deltaProgress := cmd.Duration("delta-progress", 30*time.Second, "duration of delta progress")
-		deltaResend := cmd.Duration("delta-resend", 10*time.Second, "duration of delta resend")
+		deltaProgress := cmd.Duration("delta-progress", 22*time.Second, "duration of delta progress")
+		deltaResend := cmd.Duration("delta-resend", 1*time.Second, "duration of delta resend")
 		deltaRound := cmd.Duration("delta-round", 10*time.Second, "duration of delta round")
-		deltaGrace := cmd.Duration("delta-grace", 20*time.Second, "duration of delta grace")
-		deltaStage := cmd.Duration("delta-stage", 20*time.Second, "duration of delta stage")
+		deltaGrace := cmd.Duration("delta-grace", 5*time.Second, "duration of delta grace")
+		deltaStage := cmd.Duration("delta-stage", 60*time.Second, "duration of delta stage")
 		maxRounds := cmd.Uint("max-rounds", 3, "maximum number of rounds")
 		maxDurationQuery := cmd.Duration("max-duration-query", 10*time.Millisecond, "maximum duration of query")
-		maxDurationObservation := cmd.Duration("max-duration-observation", 10*time.Second, "maximum duration of observation method")
-		maxDurationReport := cmd.Duration("max-duration-report", 10*time.Second, "maximum duration of report method")
-		maxDurationAccept := cmd.Duration("max-duration-accept", 10*time.Millisecond, "maximum duration of shouldAcceptFinalizedReport method")
-		maxDurationTransmit := cmd.Duration("max-duration-transmit", 1*time.Second, "maximum duration of shouldTransmitAcceptedReport method")
+		maxDurationObservation := cmd.Duration("max-duration-observation", 10000*time.Millisecond, "maximum duration of observation method")
+		maxDurationReport := cmd.Duration("max-duration-report", 10000*time.Millisecond, "maximum duration of report method")
+		maxDurationAccept := cmd.Duration("max-duration-accept", 1000*time.Millisecond, "maximum duration of shouldAcceptFinalizedReport method")
+		maxDurationTransmit := cmd.Duration("max-duration-transmit", 1000*time.Millisecond, "maximum duration of shouldTransmitAcceptedReport method")
 
 		helpers.ParseArgs(cmd,
 			os.Args[2:],
@@ -274,6 +274,26 @@ func main() {
 			big.NewInt(int64(*confDelay)),
 			uint32(*callbackGasLimit),
 			nil, // test consumer doesn't use any args
+		)
+
+	case "consumer-request-callback-batch":
+		cmd := flag.NewFlagSet("consumer-request-callback", flag.ExitOnError)
+		consumerAddress := cmd.String("consumer-address", "", "VRF beacon consumer address")
+		numWords := cmd.Uint("num-words", 1, "number of words to request")
+		subID := cmd.Uint64("sub-id", 0, "subscription ID")
+		confDelay := cmd.Int64("conf-delay", 1, "confirmation delay")
+		batchSize := cmd.Int64("batch-size", 1, "batch size")
+		callbackGasLimit := cmd.Uint("cb-gas-limit", 100_000, "callback gas limit")
+		helpers.ParseArgs(cmd, os.Args[2:], "consumer-address")
+		requestRandomnessCallbackBatch(
+			e,
+			*consumerAddress,
+			uint16(*numWords),
+			*subID,
+			big.NewInt(int64(*confDelay)),
+			uint32(*callbackGasLimit),
+			nil, // test consumer doesn't use any args,
+			big.NewInt(*batchSize),
 		)
 
 	case "dkg-setup":

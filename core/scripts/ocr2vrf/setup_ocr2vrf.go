@@ -192,6 +192,13 @@ func setupOCR2VRFNodes(e helpers.Environment) {
 	fmt.Println(callbackCommand)
 	fmt.Println()
 
+	fmt.Println("Consumer callback batch request command:")
+	callbackCommand = fmt.Sprintf(
+		"go run . consumer-request-callback-batch -consumer-address %s -sub-id <sub-id> -batch-size <batch-size>",
+		consumerAddress.Hex())
+	fmt.Println(callbackCommand)
+	fmt.Println()
+
 	fmt.Println("Consumer redeem randomness command:")
 	redeemCommand := fmt.Sprintf(
 		"go run . consumer-redeem-randomness -consumer-address %s -request-id <req-id>",

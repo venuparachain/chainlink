@@ -44,10 +44,11 @@ const (
 	configSetEvent = "ConfigSet"
 
 	// TODO: Add these to the off-chain config.
-	cacheEvictionWindowSeconds = 30
+	cacheEvictionWindowSeconds = 60
 	batchGasLimit              = int64(5_000_000)
 	blockGasOverhead           = int64(50_000)
 	callbackGasOverhead        = int64(50_000)
+	coordinatorOverhead        = int64(200_000)
 )
 
 // block is used to key into a set that tracks beacon blocks.
@@ -198,7 +199,7 @@ func (c *coordinator) ReportBlocks(
 	maxCallbacks int, // TODO: unused for now
 ) (blocks []ocr2vrftypes.Block, callbacks []ocr2vrftypes.AbstractCostedCallbackRequest, err error) {
 	// Instantiate the gas used by this batch.
-	currentBatchGasLimit := int64(0)
+	currentBatchGasLimit := coordinatorOverhead
 
 	// TODO: use head broadcaster instead?
 	currentHeight, err := c.lp.LatestBlock(pg.WithParentCtx(ctx))
@@ -230,7 +231,7 @@ func (c *coordinator) ReportBlocks(
 		return
 	}
 
-	c.lggr.Info(fmt.Sprintf("vrf LogsWithSigs: %+v", logs))
+	// c.lggr.Info(fmt.Sprintf("vrf LogsWithSigs: %+v", logs))
 
 	randomnessRequestedLogs,
 		randomnessFulfillmentRequestedLogs,
@@ -262,7 +263,7 @@ func (c *coordinator) ReportBlocks(
 		blocksRequested[uf] = struct{}{}
 	}
 
-	c.lggr.Info(fmt.Sprintf("filtered eligible randomness requests: %+v", unfulfilled))
+	c.lggr.Info(fmt.Sprintf("number of randomness requests: %+v", len(unfulfilled)))
 
 	callbacksRequested, unfulfilled, err := c.filterEligibleCallbacks(randomnessFulfillmentRequestedLogs, confirmationDelays, currentHeight, blockhashesMapping)
 	if err != nil {
@@ -273,7 +274,7 @@ func (c *coordinator) ReportBlocks(
 		blocksRequested[uf] = struct{}{}
 	}
 
-	c.lggr.Info(fmt.Sprintf("filtered eligible callbacks: %+v, unfulfilled: %+v", callbacksRequested, unfulfilled))
+	c.lggr.Info(fmt.Sprintf("number of callbacks: %+v", len(callbacksRequested)))
 
 	// Remove blocks that have already received responses so that we don't
 	// respond to them again.
@@ -282,7 +283,7 @@ func (c *coordinator) ReportBlocks(
 		delete(blocksRequested, f)
 	}
 
-	c.lggr.Info(fmt.Sprintf("got fulfilled blocks: %+v", fulfilledBlocks))
+	c.lggr.Info(fmt.Sprintf("number of fulfilled blocks: %+v", len(fulfilledBlocks)))
 
 	// Fill blocks slice with valid requested blocks.
 	blocks = []ocr2vrftypes.Block{}
@@ -299,13 +300,16 @@ func (c *coordinator) ReportBlocks(
 		}
 	}
 
-	c.lggr.Info(fmt.Sprintf("got blocks: %+v", blocks))
+	c.lggr.Info(fmt.Sprintf("number of blocks to fill: %+v", len(blocks)))
 
 	// Find unfulfilled callback requests by filtering out already fulfilled callbacks.
 	fulfilledRequestIDs := c.getFulfilledRequestIDs(randomWordsFulfilledLogs)
 	callbacks = c.filterUnfulfilledCallbacks(callbacksRequested, fulfilledRequestIDs, confirmationDelays, currentHeight, currentBatchGasLimit)
 
-	c.lggr.Info(fmt.Sprintf("filtered unfulfilled callbacks: %+v, fulfilled: %+v", callbacks, fulfilledRequestIDs))
+	if len(callbacksRequested) > 0 {
+		c.lggr.Info(fmt.Sprintf("newest callback beacon output height %+v", callbacksRequested[len(callbacksRequested)-1].NextBeaconOutputHeight+callbacksRequested[len(callbacksRequested)-1].ConfDelay.Uint64()))
+	}
+	c.lggr.Info(fmt.Sprintf("number of unfulfilled elligible callbacks: %+v, fulfilled: %+v", len(callbacks), len(fulfilledRequestIDs)))
 
 	return
 }
