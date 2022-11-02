@@ -73,9 +73,9 @@ func setAuthorizedSenders(e helpers.Environment, forwarder common.Address, sende
 	helpers.ConfirmTXMined(context.Background(), e.Ec, tx, e.ChainID)
 }
 
-func deployVRFBeacon(e helpers.Environment, coordinatorAddress, linkAddress, dkgAddress, keyID string) common.Address {
+func deployVRFBeacon(e helpers.Environment, dkgAddress, keyID string) common.Address {
 	keyIDBytes := decodeHexTo32ByteArray(keyID)
-	_, tx, _, err := vrf_beacon.DeployVRFBeacon(e.Owner, e.Ec, common.HexToAddress(coordinatorAddress), common.HexToAddress(coordinatorAddress), common.HexToAddress(dkgAddress), keyIDBytes)
+	_, tx, _, err := vrf_beacon.DeployVRFBeacon(e.Owner, e.Ec, common.HexToAddress(dkgAddress), keyIDBytes)
 	helpers.PanicErr(err)
 	return helpers.ConfirmContractDeployed(context.Background(), e.Ec, tx, e.ChainID)
 }
@@ -253,14 +253,6 @@ func addConsumer(e helpers.Environment, vrfCoordinatorAddr, consumerAddr string,
 	coordinator := newVRFCoordinator(common.HexToAddress(vrfCoordinatorAddr), e.Ec)
 
 	tx, err := coordinator.AddConsumer(e.Owner, subId.Uint64(), common.HexToAddress(consumerAddr))
-	helpers.PanicErr(err)
-	helpers.ConfirmTXMined(context.Background(), e.Ec, tx, e.ChainID)
-}
-
-func setPayees(e helpers.Environment, vrfBeaconAddr string, transmitters, payees []common.Address) {
-	beacon := newVRFBeacon(common.HexToAddress(vrfBeaconAddr), e.Ec)
-
-	tx, err := beacon.SetPayees(e.Owner, transmitters, payees)
 	helpers.PanicErr(err)
 	helpers.ConfirmTXMined(context.Background(), e.Ec, tx, e.ChainID)
 }

@@ -1,18 +1,11 @@
 package coordinator
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
-	"fmt"
-	"math/big"
-	"sort"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
 	"github.com/smartcontractkit/ocr2vrf/dkg"
 	ocr2vrftypes "github.com/smartcontractkit/ocr2vrf/types"
@@ -23,9 +16,7 @@ import (
 	dkg_wrapper "github.com/smartcontractkit/chainlink/core/gethwrappers/ocr2vrf/generated/dkg"
 	"github.com/smartcontractkit/chainlink/core/gethwrappers/ocr2vrf/generated/vrf_beacon"
 	"github.com/smartcontractkit/chainlink/core/gethwrappers/ocr2vrf/generated/vrf_coordinator"
-	vrf_wrapper "github.com/smartcontractkit/chainlink/core/gethwrappers/ocr2vrf/generated/vrf_coordinator"
 	"github.com/smartcontractkit/chainlink/core/logger"
-	"github.com/smartcontractkit/chainlink/core/services/pg"
 )
 
 var _ ocr2vrftypes.CoordinatorInterface = &coordinator{}
@@ -150,6 +141,7 @@ func New(
 	}, nil
 }
 
+<<<<<<< HEAD
 // ReportIsOnchain returns true iff a report for the given OCR epoch/round is
 // present onchain.
 func (c *coordinator) ReportIsOnchain(ctx context.Context, epoch uint32, round uint8) (presentOnchain bool, err error) {
@@ -735,14 +727,16 @@ func (c *coordinator) ReportWillBeTransmitted(ctx context.Context, report ocr2vr
 	}
 
 	return nil
+=======
+func (c *coordinator) ContractID(ctx context.Context) common.Address {
+	return c.beaconAddress
+>>>>>>> aff63a170 (Adjustments for recoverable wallet.)
 }
 
 // DKGVRFCommittees returns the addresses of the signers and transmitters
 // for the DKG and VRF OCR committees. On ethereum, these can be retrieved
 // from the most recent ConfigSet events for each contract.
 func (c *coordinator) DKGVRFCommittees(ctx context.Context) (dkgCommittee, vrfCommittee ocr2vrftypes.OCRCommittee, err error) {
-	startTime := time.Now().UTC()
-	defer c.logDurationOfFunction("DKGVRFCommittees", startTime)
 
 	latestVRF, err := c.lp.LatestLogByEventSigWithConfs(
 		c.configSetTopic,
@@ -806,33 +800,6 @@ func (c *coordinator) ProvingKeyHash(ctx context.Context) (common.Hash, error) {
 	return h, nil
 }
 
-// BeaconPeriod returns the period used in the coordinator's contract
-func (c *coordinator) BeaconPeriod(ctx context.Context) (uint16, error) {
-	beaconPeriodBlocks, err := c.onchainRouter.IBeaconPeriodBlocks(&bind.CallOpts{
-		Context: ctx,
-	})
-	if err != nil {
-		return 0, errors.Wrap(err, "get beacon period blocks")
-	}
-
-	return uint16(beaconPeriodBlocks.Int64()), nil
-}
-
-// ConfirmationDelays returns the list of confirmation delays defined in the coordinator's contract
-func (c *coordinator) ConfirmationDelays(ctx context.Context) ([]uint32, error) {
-	confDelays, err := c.onchainRouter.GetConfirmationDelays(&bind.CallOpts{
-		Context: ctx,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "could not get confirmation delays")
-	}
-	var result []uint32
-	for _, c := range confDelays {
-		result = append(result, uint32(c.Uint64()))
-	}
-	return result, nil
-}
-
 // KeyID returns the key ID from coordinator's contract
 func (c *coordinator) KeyID(ctx context.Context) (dkg.KeyID, error) {
 	keyID, err := c.onchainRouter.SKeyID(&bind.CallOpts{Context: ctx})
@@ -840,67 +807,4 @@ func (c *coordinator) KeyID(ctx context.Context) (dkg.KeyID, error) {
 		return dkg.KeyID{}, errors.Wrap(err, "could not get key ID")
 	}
 	return keyID, nil
-}
-
-// isBlockEligible returns true if and only if the nextBeaconOutputHeight plus
-// the confDelay is less than the current blockchain height, meaning that the beacon
-// output height has enough confirmations.
-//
-// NextBeaconOutputHeight is always greater than the request block, therefore
-// a number of confirmations on the beacon block is always enough confirmations
-// for the request block.
-func isBlockEligible(nextBeaconOutputHeight uint64, confDelay *big.Int, currentHeight int64) bool {
-	cond := confDelay.Int64() < currentHeight // Edge case: for simulated chains with low block numbers
-	cond = cond && (nextBeaconOutputHeight+confDelay.Uint64()) < uint64(currentHeight)
-	return cond
-}
-
-// toEpochAndRoundUint40 returns a single unsigned 40 bit big.Int object
-// that has the epoch in the first 32 bytes and the round in the last 8 bytes,
-// in a big-endian fashion.
-func toEpochAndRoundUint40(epoch uint32, round uint8) *big.Int {
-	return big.NewInt((int64(epoch) << 8) + int64(round))
-}
-
-func toGethLog(lg logpoller.Log) types.Log {
-	var topics []common.Hash
-	for _, b := range lg.Topics {
-		topics = append(topics, common.BytesToHash(b))
-	}
-	return types.Log{
-		Data:        lg.Data,
-		Address:     lg.Address,
-		BlockHash:   lg.BlockHash,
-		BlockNumber: uint64(lg.BlockNumber),
-		Topics:      topics,
-		TxHash:      lg.TxHash,
-		Index:       uint(lg.LogIndex),
-	}
-}
-
-// getBlockCacheKey returns a cache key for a requested block
-// The blockhash of the block does not need to be included in the key. Instead,
-// the block cached at a given key contains a blockhash that is checked for validity
-// against the log poller's current state.
-func getBlockCacheKey(blockNumber uint64, confDelay uint64) common.Hash {
-	var blockNumberBytes [8]byte
-	var confDelayBytes [8]byte
-
-	binary.BigEndian.PutUint64(blockNumberBytes[:], blockNumber)
-	binary.BigEndian.PutUint64(confDelayBytes[:], confDelay)
-
-	return common.BytesToHash(bytes.Join([][]byte{blockNumberBytes[:], confDelayBytes[:]}, nil))
-}
-
-// getBlockCacheKey returns a cache key for a requested callback
-// The blockhash of the callback does not need to be included in the key. Instead,
-// the callback cached at a given key contains a blockhash that is checked for validity
-// against the log poller's current state.
-func getCallbackCacheKey(requestID int64) common.Hash {
-	return common.BigToHash(big.NewInt(requestID))
-}
-
-// logDurationOfFunction logs the time in milliseconds a function took to execute.
-func (c *coordinator) logDurationOfFunction(funcName string, startTime time.Time) {
-	c.lggr.Debugf("%s took %d milliseconds to complete", funcName, time.Now().UTC().Sub(startTime).Milliseconds())
 }

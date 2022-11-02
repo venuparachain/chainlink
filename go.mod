@@ -321,6 +321,7 @@ require (
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
 	github.com/tklauser/numcpus v0.4.0 // indirect
+	github.com/twystd/tweetnacl-go v0.0.0-20210413205227-681aa97ec383 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	github.com/umbracle/fastrlp v0.0.0-20220527094140-59d5dd30e722 // indirect
 	github.com/urfave/cli/v2 v2.10.2 // indirect
@@ -376,3 +377,5 @@ exclude (
 	github.com/nats-io/nats-server/v2 v2.1.2
 	github.com/nats-io/nats-server/v2 v2.5.0
 )
+
+replace github.com/smartcontractkit/ocr2vrf => ../ocr2vrf-recover

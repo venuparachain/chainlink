@@ -65,12 +65,10 @@ func main() {
 
 	case "beacon-deploy":
 		cmd := flag.NewFlagSet("beacon-deploy", flag.ExitOnError)
-		coordinatorAddress := cmd.String("coordinator-address", "", "coordinator contract address")
-		linkAddress := cmd.String("link-address", "", "link contract address")
 		dkgAddress := cmd.String("dkg-address", "", "dkg contract address")
 		keyID := cmd.String("key-id", "", "key ID")
 		helpers.ParseArgs(cmd, os.Args[2:], "beacon-deploy", "coordinator-address", "link-address", "dkg-address", "key-id")
-		deployVRFBeacon(e, *coordinatorAddress, *linkAddress, *dkgAddress, *keyID)
+		deployVRFBeacon(e, *dkgAddress, *keyID)
 
 	case "dkg-add-client":
 		cmd := flag.NewFlagSet("dkg-add-client", flag.ExitOnError)
@@ -283,14 +281,6 @@ func main() {
 		subId := cmd.Uint64("sub-id", 1, "subscription ID")
 		helpers.ParseArgs(cmd, os.Args[2:], "coordinator-address", "link-address")
 		eoaFundSubscription(e, *coordinatorAddress, *linkAddress, big.NewInt(*fundingAmount), *subId)
-
-	case "beacon-set-payees":
-		cmd := flag.NewFlagSet("beacon-set-payees", flag.ExitOnError)
-		beaconAddress := cmd.String("beacon-address", "", "VRF beacon contract address")
-		transmitters := cmd.String("transmitters", "", "comma-separated list of transmitters")
-		payees := cmd.String("payees", "", "comma-separated list of payees")
-		helpers.ParseArgs(cmd, os.Args[2:], "beacon-address", "transmitters", "payees")
-		setPayees(e, *beaconAddress, helpers.ParseAddressSlice(*transmitters), helpers.ParseAddressSlice(*payees))
 
 	case "consumer-deploy":
 		cmd := flag.NewFlagSet("consumer-deploy", flag.ExitOnError)
