@@ -378,4 +378,4 @@ exclude (
 	github.com/nats-io/nats-server/v2 v2.5.0
 )
 
-replace github.com/smartcontractkit/ocr2vrf => ../ocr2vrf-recover
+replace github.com/smartcontractkit/ocr2vrf => ../ocr2recovery

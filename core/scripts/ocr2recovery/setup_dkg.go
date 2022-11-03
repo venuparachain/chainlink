@@ -74,7 +74,7 @@ func setupDKGNodes(e helpers.Environment) {
 		resetDatabase(client, context, i, *databasePrefix, *databaseSuffixes)
 
 		// Setup DKG node.
-		payload := setupOCR2VRFNodeFromClient(client, context)
+		payload := setupOCR2RecoveryNodeFromClient(client, context)
 
 		// Append arguments for dkg-set-config command.
 		onChainPublicKeys = append(onChainPublicKeys, payload.OnChainPublicKey)

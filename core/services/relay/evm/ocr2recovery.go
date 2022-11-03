@@ -25,40 +25,40 @@ type DKGProvider interface {
 	relaytypes.Plugin
 }
 
-// OCR2VRFProvider provides all components needed for a OCR2VRF plugin.
-type OCR2VRFProvider interface {
+// OCR2RecoveryProvider provides all components needed for a OCR2Recovery plugin.
+type OCR2RecoveryProvider interface {
 	relaytypes.Plugin
 }
 
-// OCR2VRFRelayer contains the relayer and instantiating functions for OCR2VRF providers.
-type OCR2VRFRelayer interface {
+// OCR2RecoveryRelayer contains the relayer and instantiating functions for OCR2Recovery providers.
+type OCR2RecoveryRelayer interface {
 	NewDKGProvider(rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (DKGProvider, error)
-	NewOCR2VRFProvider(rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (OCR2VRFProvider, error)
+	NewOCR2RecoveryProvider(rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (OCR2RecoveryProvider, error)
 }
 
 var (
-	_ OCR2VRFRelayer  = (*ocr2vrfRelayer)(nil)
-	_ DKGProvider     = (*dkgProvider)(nil)
-	_ OCR2VRFProvider = (*ocr2vrfProvider)(nil)
+	_ OCR2RecoveryRelayer  = (*ocr2recoveryRelayer)(nil)
+	_ DKGProvider          = (*dkgProvider)(nil)
+	_ OCR2RecoveryProvider = (*ocr2recoveryProvider)(nil)
 )
 
-// Relayer with added DKG and OCR2VRF provider functions.
-type ocr2vrfRelayer struct {
+// Relayer with added DKG and OCR2Recovery provider functions.
+type ocr2recoveryRelayer struct {
 	db    *sqlx.DB
 	chain evm.Chain
 	lggr  logger.Logger
 }
 
-func NewOCR2VRFRelayer(db *sqlx.DB, chain evm.Chain, lggr logger.Logger) OCR2VRFRelayer {
-	return &ocr2vrfRelayer{
+func NewOCR2RecoveryRelayer(db *sqlx.DB, chain evm.Chain, lggr logger.Logger) OCR2RecoveryRelayer {
+	return &ocr2recoveryRelayer{
 		db:    db,
 		chain: chain,
 		lggr:  lggr,
 	}
 }
 
-func (r *ocr2vrfRelayer) NewDKGProvider(rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (DKGProvider, error) {
-	configWatcher, err := newOCR2VRFConfigProvider(r.lggr, r.chain, rargs)
+func (r *ocr2recoveryRelayer) NewDKGProvider(rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (DKGProvider, error) {
+	configWatcher, err := newOCR2RecoveryConfigProvider(r.lggr, r.chain, rargs)
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +80,8 @@ func (r *ocr2vrfRelayer) NewDKGProvider(rargs relaytypes.RelayArgs, pargs relayt
 	}, nil
 }
 
-func (r *ocr2vrfRelayer) NewOCR2VRFProvider(rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (OCR2VRFProvider, error) {
-	configWatcher, err := newOCR2VRFConfigProvider(r.lggr, r.chain, rargs)
+func (r *ocr2recoveryRelayer) NewOCR2RecoveryProvider(rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (OCR2RecoveryProvider, error) {
+	configWatcher, err := newOCR2RecoveryConfigProvider(r.lggr, r.chain, rargs)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (r *ocr2vrfRelayer) NewOCR2VRFProvider(rargs relaytypes.RelayArgs, pargs re
 	if err != nil {
 		return nil, err
 	}
-	return &ocr2vrfProvider{
+	return &ocr2recoveryProvider{
 		configWatcher:       configWatcher,
 		contractTransmitter: contractTransmitter,
 	}, nil
@@ -105,16 +105,16 @@ func (c *dkgProvider) ContractTransmitter() types.ContractTransmitter {
 	return c.contractTransmitter
 }
 
-type ocr2vrfProvider struct {
+type ocr2recoveryProvider struct {
 	*configWatcher
 	contractTransmitter *ContractTransmitter
 }
 
-func (c *ocr2vrfProvider) ContractTransmitter() types.ContractTransmitter {
+func (c *ocr2recoveryProvider) ContractTransmitter() types.ContractTransmitter {
 	return c.contractTransmitter
 }
 
-func newOCR2VRFConfigProvider(lggr logger.Logger, chain evm.Chain, rargs relaytypes.RelayArgs) (*configWatcher, error) {
+func newOCR2RecoveryConfigProvider(lggr logger.Logger, chain evm.Chain, rargs relaytypes.RelayArgs) (*configWatcher, error) {
 	var relayConfig RelayConfig
 	err := json.Unmarshal(rargs.RelayConfig, &relayConfig)
 	if err != nil {

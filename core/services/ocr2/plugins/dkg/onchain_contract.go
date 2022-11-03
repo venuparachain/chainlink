@@ -10,7 +10,7 @@ import (
 
 	"github.com/smartcontractkit/ocr2vrf/dkg"
 	dkgwrapper "github.com/smartcontractkit/ocr2vrf/gethwrappers/dkg"
-	ocr2vrftypes "github.com/smartcontractkit/ocr2vrf/types"
+	ocr2recoverytypes "github.com/smartcontractkit/ocr2vrf/types"
 
 	evmclient "github.com/smartcontractkit/chainlink/core/chains/evm/client"
 )
@@ -55,8 +55,8 @@ func (o *onchainContract) Address() common.Address {
 	return o.dkgAddress
 }
 
-func (o *onchainContract) CurrentCommittee(ctx context.Context) (ocr2vrftypes.OCRCommittee, error) {
-	// NOTE: this is only ever used in tests in the ocr2vrf repo.
+func (o *onchainContract) CurrentCommittee(ctx context.Context) (ocr2recoverytypes.OCRCommittee, error) {
+	// NOTE: this is only ever used in tests in the ocr2recovery repo.
 	// Since this isn't really used for production DKG running,
 	// there's no point in implementing it.
 	panic("unimplemented")
@@ -64,13 +64,13 @@ func (o *onchainContract) CurrentCommittee(ctx context.Context) (ocr2vrftypes.OC
 
 func (o *onchainContract) InitiateDKG(
 	ctx context.Context,
-	committee ocr2vrftypes.OCRCommittee,
-	f ocr2vrftypes.PlayerIdxInt,
+	committee ocr2recoverytypes.OCRCommittee,
+	f ocr2recoverytypes.PlayerIdxInt,
 	keyID dkg.KeyID,
 	epks dkg.EncryptionPublicKeys,
 	spks dkg.SigningPublicKeys,
 	encGroup anon.Suite,
-	translator ocr2vrftypes.PubKeyTranslation,
+	translator ocr2recoverytypes.PubKeyTranslation,
 ) error {
 	// NOTE: this is only ever used in tests, the idea here is to call setConfig
 	// on the DKG contract to get the OCR process going. Since this isn't really

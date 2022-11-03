@@ -282,7 +282,7 @@ const (
 
 	DKG OCR2PluginType = "dkg"
 
-	OCR2VRF OCR2PluginType = "ocr2vrf"
+	OCR2Recovery OCR2PluginType = "ocr2recovery"
 
 	// Keeper was rebranded to automation. For now the plugin type required in job spec points
 	// to the new name (automation) but in code we refer it to keepers

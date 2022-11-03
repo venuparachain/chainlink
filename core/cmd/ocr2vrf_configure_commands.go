@@ -24,7 +24,7 @@ import (
 	"github.com/smartcontractkit/chainlink/core/utils"
 )
 
-type SetupOCR2VRFNodePayload struct {
+type SetupOCR2RecoveryNodePayload struct {
 	OnChainPublicKey  string
 	OffChainPublicKey string
 	ConfigPublicKey   string
@@ -47,13 +47,9 @@ type dkgTemplateArgs struct {
 	signingPublicKey        string
 }
 
-type ocr2vrfTemplateArgs struct {
+type ocr2recoveryTemplateArgs struct {
 	dkgTemplateArgs
-	vrfBeaconAddress      string
-	vrfCoordinatorAddress string
-	linkEthFeedAddress    string
-	confirmationDelays    string
-	lookbackBlocks        int64
+	recoveryBeaconAddress string
 }
 
 const dkgTemplate = `
@@ -78,7 +74,7 @@ KeyID                = "%s"
 SigningPublicKey     = "%s"
 `
 
-const ocr2vrfTemplate = `
+const ocr2recoveryTemplate = `
 type                 = "offchainreporting2"
 schemaVersion        = 1
 name                 = "ocr2"
@@ -87,7 +83,7 @@ contractID           = "%s"
 ocrKeyBundleID       = "%s"
 p2pv2Bootstrappers   = ["%s@127.0.0.1:%s"]
 relay                = "evm"
-pluginType           = "ocr2vrf"
+pluginType           = "ocr2recovery"
 transmitterID        = "%s"
 
 [relayConfig]
@@ -98,11 +94,6 @@ dkgEncryptionPublicKey = "%s"
 dkgSigningPublicKey    = "%s"
 dkgKeyID               = "%s"
 dkgContractAddress     = "%s"
-
-vrfCoordinatorAddress  = "%s"
-linkEthFeedAddress     = "%s"
-confirmationDelays     = %s # This is an array
-lookbackBlocks         = %d # This is an integer
 `
 
 const bootstrapTemplate = `
@@ -119,8 +110,8 @@ chainID                            = %d
 
 const forwarderAdditionalEOACount = 4
 
-func (cli *Client) ConfigureOCR2VRFNode(c *clipkg.Context) (*SetupOCR2VRFNodePayload, error) {
-	lggr := cli.Logger.Named("ConfigureOCR2VRFNode")
+func (cli *Client) ConfigureOCR2RecoveryNode(c *clipkg.Context) (*SetupOCR2RecoveryNodePayload, error) {
+	lggr := cli.Logger.Named("ConfigureOCR2RecoveryNode")
 	err := cli.Config.Validate()
 	if err != nil {
 		return nil, cli.errorOut(errors.Wrap(err, "config validation failed"))
@@ -262,9 +253,9 @@ func (cli *Client) ConfigureOCR2VRFNode(c *clipkg.Context) (*SetupOCR2VRFNodePay
 			keyID:                   keyID,
 			signingPublicKey:        dkgSignKey,
 		})
-	} else if c.String("job-type") == "OCR2VRF" {
-		// Set up OCR2VRF job.
-		err = createOCR2VRFJob(lggr, app, ocr2vrfTemplateArgs{
+	} else if c.String("job-type") == "OCR2Recovery" {
+		// Set up OCR2Recovery job.
+		err = createOCR2RecoveryJob(lggr, app, ocr2recoveryTemplateArgs{
 			dkgTemplateArgs: dkgTemplateArgs{
 				contractID:              c.String("dkg-address"),
 				ocrKeyBundleID:          ocr2.ID(),
@@ -276,11 +267,7 @@ func (cli *Client) ConfigureOCR2VRFNode(c *clipkg.Context) (*SetupOCR2VRFNodePay
 				keyID:                   keyID,
 				signingPublicKey:        dkgSignKey,
 			},
-			vrfBeaconAddress:      c.String("vrf-beacon-address"),
-			vrfCoordinatorAddress: c.String("vrf-coordinator-address"),
-			linkEthFeedAddress:    c.String("link-eth-feed-address"),
-			lookbackBlocks:        c.Int64("lookback-blocks"),
-			confirmationDelays:    c.String("confirmation-delays"),
+			recoveryBeaconAddress: c.String("recovery-beacon-address"),
 		})
 	} else {
 		err = fmt.Errorf("unknown job type: %s", c.String("job-type"))
@@ -290,7 +277,7 @@ func (cli *Client) ConfigureOCR2VRFNode(c *clipkg.Context) (*SetupOCR2VRFNodePay
 		return nil, err
 	}
 
-	return &SetupOCR2VRFNodePayload{
+	return &SetupOCR2RecoveryNodePayload{
 		OnChainPublicKey:  ocr2.OnChainPublicKey(),
 		OffChainPublicKey: hex.EncodeToString(offChainPublicKey[:]),
 		ConfigPublicKey:   hex.EncodeToString(configPublicKey[:]),
@@ -398,9 +385,9 @@ func createDKGJob(lggr logger.Logger, app chainlink.Application, args dkgTemplat
 	return nil
 }
 
-func createOCR2VRFJob(lggr logger.Logger, app chainlink.Application, args ocr2vrfTemplateArgs) error {
-	sp := fmt.Sprintf(ocr2vrfTemplate,
-		args.vrfBeaconAddress,
+func createOCR2RecoveryJob(lggr logger.Logger, app chainlink.Application, args ocr2recoveryTemplateArgs) error {
+	sp := fmt.Sprintf(ocr2recoveryTemplate,
+		args.recoveryBeaconAddress,
 		args.ocrKeyBundleID,
 		args.p2pv2BootstrapperPeerID,
 		args.p2pv2BootstrapperPort,
@@ -410,10 +397,6 @@ func createOCR2VRFJob(lggr logger.Logger, app chainlink.Application, args ocr2vr
 		args.signingPublicKey,
 		args.keyID,
 		args.contractID,
-		args.vrfCoordinatorAddress,
-		args.linkEthFeedAddress,
-		fmt.Sprintf("[%s]", args.confirmationDelays), // conf delays should be comma separated
-		args.lookbackBlocks,
 	)
 
 	var jb job.Job
@@ -432,7 +415,7 @@ func createOCR2VRFJob(lggr logger.Logger, app chainlink.Application, args ocr2vr
 	if err != nil {
 		return errors.Wrap(err, "failed to add job")
 	}
-	lggr.Info("ocr2vrf spec:", sp)
+	lggr.Info("ocr2recovery spec:", sp)
 
 	return nil
 }

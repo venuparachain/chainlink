@@ -7,13 +7,13 @@ import (
 	dkgconfig "github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/dkg/config"
 )
 
-// PluginConfig contains custom arguments for the OCR2VRF plugin.
+// PluginConfig contains custom arguments for the OCR2Recovery plugin.
 //
-// The OCR2VRF plugin runs a DKG under the hood, so it will need both
-// DKG and OCR2VRF configuration fields.
+// The OCR2Recovery plugin runs a DKG under the hood, so it will need both
+// DKG and OCR2Recovery configuration fields.
 //
 // The DKG contract address is provided in the plugin configuration,
-// however the OCR2VRF contract address is provided in the OCR2 job spec
+// however the OCR2Recovery contract address is provided in the OCR2 job spec
 // under the 'contractID' key.
 type PluginConfig struct {
 	// DKG configuration fields.
@@ -21,14 +21,9 @@ type PluginConfig struct {
 	DKGSigningPublicKey    string `json:"dkgSigningPublicKey"`
 	DKGKeyID               string `json:"dkgKeyID"`
 	DKGContractAddress     string `json:"dkgContractAddress"`
-
-	// VRF configuration fields
-	VRFCoordinatorAddress string `json:"vrfCoordinatorAddress"`
-	LinkEthFeedAddress    string `json:"linkEthFeedAddress"`
-	LookbackBlocks        int64  `json:"lookbackBlocks"`
 }
 
-// ValidatePluginConfig validates that the given OCR2VRF plugin configuration is correct.
+// ValidatePluginConfig validates that the given OCR2Recovery plugin configuration is correct.
 func ValidatePluginConfig(config PluginConfig, dkgSignKs keystore.DKGSign, dkgEncryptKs keystore.DKGEncrypt) error {
 	err := dkgconfig.ValidatePluginConfig(dkgconfig.PluginConfig{
 		EncryptionPublicKey: config.DKGEncryptionPublicKey,
@@ -44,19 +39,5 @@ func ValidatePluginConfig(config PluginConfig, dkgSignKs keystore.DKGSign, dkgEn
 	if config.DKGContractAddress == "" {
 		return errors.New("dkgContractAddress field must be provided")
 	}
-
-	if config.VRFCoordinatorAddress == "" {
-		return errors.New("vrfCoordinatorAddress field must be provided")
-	}
-
-	// NOTE: similar to the above.
-	if config.LinkEthFeedAddress == "" {
-		return errors.New("linkEthFieldAddress field must be provided")
-	}
-
-	if config.LookbackBlocks <= 0 {
-		return errors.New("lookbackBlocks field must be positive")
-	}
-
 	return nil
 }

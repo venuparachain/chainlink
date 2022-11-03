@@ -12,7 +12,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink/core/services/job"
 	dkgconfig "github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/dkg/config"
-	ocr2vrfconfig "github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/ocr2vrf/config"
+	ocr2recoveryconfig "github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/ocr2vrf/config"
 	"github.com/smartcontractkit/chainlink/core/services/ocrcommon"
 	"github.com/smartcontractkit/chainlink/core/services/relay"
 )
@@ -98,8 +98,8 @@ func validateSpec(tree *toml.Tree, spec job.Job) error {
 		}
 	case job.DKG:
 		return validateDKGSpec(spec.OCR2OracleSpec.PluginConfig)
-	case job.OCR2VRF:
-		return validateOCR2VRFSpec(spec.OCR2OracleSpec.PluginConfig)
+	case job.OCR2Recovery:
+		return validateOCR2RecoverySpec(spec.OCR2OracleSpec.PluginConfig)
 	case job.OCR2Keeper:
 		return validateOCR2KeeperSpec(spec.OCR2OracleSpec.PluginConfig)
 	case job.OCR2DirectRequest:
@@ -150,11 +150,11 @@ func validateHexString(val string, expectedLengthInBytes uint) error {
 	return nil
 }
 
-func validateOCR2VRFSpec(jsonConfig job.JSONConfig) error {
+func validateOCR2RecoverySpec(jsonConfig job.JSONConfig) error {
 	if jsonConfig == nil {
 		return errors.New("pluginConfig is empty")
 	}
-	var cfg ocr2vrfconfig.PluginConfig
+	var cfg ocr2recoveryconfig.PluginConfig
 	err := json.Unmarshal(jsonConfig.Bytes(), &cfg)
 	if err != nil {
 		return errors.Wrap(err, "json unmarshal plugin config")
@@ -167,14 +167,8 @@ func validateOCR2VRFSpec(jsonConfig job.JSONConfig) error {
 	if err != nil {
 		return err
 	}
-	if cfg.LinkEthFeedAddress == "" {
-		return errors.New("linkEthFeedAddress must be provided")
-	}
 	if cfg.DKGContractAddress == "" {
 		return errors.New("dkgContractAddress must be provided")
-	}
-	if cfg.LookbackBlocks <= 0 {
-		return fmt.Errorf("lookbackBlocks must be > 0, given: %+v", cfg.LookbackBlocks)
 	}
 	return nil
 }

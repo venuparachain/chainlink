@@ -1,6 +1,8 @@
 GETH_VERSION: 1.10.25
-dkg: ../../../contracts/solc/v0.8.15/DKG.abi ../../../contracts/solc/v0.8.15/DKG.bin 3e53a9a7c49246add2366d3bca7ff65135661a09533365befadea671fe7d9b8a
+dkg: ../../../contracts/solc/v0.8.15/DKG.abi ../../../contracts/solc/v0.8.15/DKG.bin 12b81183a536329d313a04729763c359f6caf29392bf60cd3c1aa8923c98aad0
 load_test_beacon_consumer: ../../../contracts/solc/v0.8.15/LoadTestBeaconVRFConsumer.abi ../../../contracts/solc/v0.8.15/LoadTestBeaconVRFConsumer.bin bbe6b498f875cddb29f050e51e85d1a6e496fd5cd7ddb4ff15d58dbffd281c6f
+recover_beacon: ../../../contracts/solc/v0.8.15/RecoveryBeacon.abi ../../../contracts/solc/v0.8.15/RecoveryBeacon.bin b2f8840e3d8601613d1d282f69acce76fd42644a9b71d40767ee36aeee59618a
+recovery_beacon: ../../../contracts/solc/v0.8.15/RecoveryBeacon.abi ../../../contracts/solc/v0.8.15/RecoveryBeacon.bin b2f8840e3d8601613d1d282f69acce76fd42644a9b71d40767ee36aeee59618a
 vrf_beacon: ../../../contracts/solc/v0.8.15/VRFBeacon.abi ../../../contracts/solc/v0.8.15/VRFBeacon.bin a741b8fcc9113b309cf3c2b86c52e147928ec61821311714d8243cdf6246f0d6
 vrf_beacon_consumer: ../../../contracts/solc/v0.8.15/BeaconVRFConsumer.abi ../../../contracts/solc/v0.8.15/BeaconVRFConsumer.bin 60b31d8a420fc6462a8e9687f003626512b842e6fea48ebcf31c5b5c4cd0a1be
 vrf_beacon_coordinator: ../../../contracts/solc/v0.8.15/VRFBeaconCoordinator.abi ../../../contracts/solc/v0.8.15/VRFBeaconCoordinator.bin 08da747a3488fcd318ddc0db75fd0df7c07a100b2e19061f0efcb12a7180ecde

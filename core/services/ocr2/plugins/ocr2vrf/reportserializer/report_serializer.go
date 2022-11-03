@@ -4,12 +4,12 @@ import (
 	"github.com/pkg/errors"
 	"go.dedis.ch/kyber/v3"
 
-	"github.com/smartcontractkit/ocr2vrf/ocr2vrf"
+	"github.com/smartcontractkit/ocr2vrf/ocr2recovery"
 	types "github.com/smartcontractkit/ocr2vrf/types"
 )
 
 type reportSerializer struct {
-	e ocr2vrf.EthereumReportSerializer
+	e ocr2recovery.EthereumReportSerializer
 }
 
 var _ types.ReportSerializer = (*reportSerializer)(nil)
@@ -17,7 +17,7 @@ var _ types.ReportSerializer = (*reportSerializer)(nil)
 // NewReportSerializer provides a serialization component for sending byte-encoded reports on-chain.
 func NewReportSerializer(encryptionGroup kyber.Group) types.ReportSerializer {
 	return &reportSerializer{
-		e: ocr2vrf.EthereumReportSerializer{
+		e: ocr2recovery.EthereumReportSerializer{
 			G: encryptionGroup,
 		},
 	}

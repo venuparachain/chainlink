@@ -3,7 +3,6 @@ package ocr2
 import (
 	"encoding/json"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -11,7 +10,7 @@ import (
 	ocr2keepers "github.com/smartcontractkit/ocr2keepers/pkg"
 	"github.com/smartcontractkit/ocr2vrf/altbn_128"
 	dkgpkg "github.com/smartcontractkit/ocr2vrf/dkg"
-	"github.com/smartcontractkit/ocr2vrf/ocr2vrf"
+	ocr2recovery "github.com/smartcontractkit/ocr2vrf/ocr2recovery"
 	"github.com/smartcontractkit/sqlx"
 	"gopkg.in/guregu/null.v4"
 
@@ -30,10 +29,8 @@ import (
 	"github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/dkg"
 	"github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/median"
 	"github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/ocr2keeper"
-	"github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/ocr2vrf/blockhashes"
-	ocr2vrfconfig "github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/ocr2vrf/config"
+	ocr2recoveryconfig "github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/ocr2vrf/config"
 	ocr2coordinator "github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/ocr2vrf/coordinator"
-	"github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/ocr2vrf/juelsfeecoin"
 	"github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/ocr2vrf/reportserializer"
 	"github.com/smartcontractkit/chainlink/core/services/ocr2/plugins/promwrapper"
 	"github.com/smartcontractkit/chainlink/core/services/ocr2/validate"
@@ -252,8 +249,8 @@ func (d *Delegate) ServicesForSpec(jobSpec job.Job) ([]job.ServiceCtx, error) {
 		if err2 != nil {
 			return nil, errors.Wrap(err2, "get chainset")
 		}
-		ocr2vrfRelayer := evmrelay.NewOCR2VRFRelayer(d.db, chain, lggr.Named("OCR2VRFRelayer"))
-		dkgProvider, err2 := ocr2vrfRelayer.NewDKGProvider(
+		ocr2recoveryRelayer := evmrelay.NewOCR2RecoveryRelayer(d.db, chain, lggr.Named("OCR2RecoveryRelayer"))
+		dkgProvider, err2 := ocr2recoveryRelayer.NewDKGProvider(
 			types.RelayArgs{
 				ExternalJobID: jobSpec.ExternalJobID,
 				JobID:         spec.ID,
@@ -294,7 +291,7 @@ func (d *Delegate) ServicesForSpec(jobSpec job.Job) ([]job.ServiceCtx, error) {
 			big.NewInt(chainID),
 			spec.Relay,
 		)
-	case job.OCR2VRF:
+	case job.OCR2Recovery:
 		chainIDInterface, ok := jobSpec.OCR2OracleSpec.RelayConfig["chainID"]
 		if !ok {
 			return nil, errors.New("chainID must be provided in relay config")
@@ -305,20 +302,20 @@ func (d *Delegate) ServicesForSpec(jobSpec job.Job) ([]job.ServiceCtx, error) {
 			return nil, errors.Wrap(err2, "get chainset")
 		}
 
-		var cfg ocr2vrfconfig.PluginConfig
+		var cfg ocr2recoveryconfig.PluginConfig
 		err2 = json.Unmarshal(spec.PluginConfig.Bytes(), &cfg)
 		if err2 != nil {
-			return nil, errors.Wrap(err2, "unmarshal ocr2vrf plugin config")
+			return nil, errors.Wrap(err2, "unmarshal ocr2recovery plugin config")
 		}
 
-		err2 = ocr2vrfconfig.ValidatePluginConfig(cfg, d.dkgSignKs, d.dkgEncryptKs)
+		err2 = ocr2recoveryconfig.ValidatePluginConfig(cfg, d.dkgSignKs, d.dkgEncryptKs)
 		if err2 != nil {
-			return nil, errors.Wrap(err2, "validate ocr2vrf plugin config")
+			return nil, errors.Wrap(err2, "validate ocr2recovery plugin config")
 		}
 
-		ocr2vrfRelayer := evmrelay.NewOCR2VRFRelayer(d.db, chain, lggr.Named("OCR2VRFRelayer"))
+		ocr2recoveryRelayer := evmrelay.NewOCR2RecoveryRelayer(d.db, chain, lggr.Named("OCR2RecoveryRelayer"))
 
-		vrfProvider, err2 := ocr2vrfRelayer.NewOCR2VRFProvider(
+		recoveryProvider, err2 := ocr2recoveryRelayer.NewOCR2RecoveryProvider(
 			types.RelayArgs{
 				ExternalJobID: jobSpec.ExternalJobID,
 				JobID:         spec.ID,
@@ -330,10 +327,10 @@ func (d *Delegate) ServicesForSpec(jobSpec job.Job) ([]job.ServiceCtx, error) {
 				PluginConfig:  spec.PluginConfig.Bytes(),
 			})
 		if err2 != nil {
-			return nil, errors.Wrap(err2, "new vrf provider")
+			return nil, errors.Wrap(err2, "new recovery provider")
 		}
 
-		dkgProvider, err2 := ocr2vrfRelayer.NewDKGProvider(
+		dkgProvider, err2 := ocr2recoveryRelayer.NewDKGProvider(
 			types.RelayArgs{
 				ExternalJobID: jobSpec.ExternalJobID,
 				JobID:         spec.ID,
@@ -352,12 +349,6 @@ func (d *Delegate) ServicesForSpec(jobSpec job.Job) ([]job.ServiceCtx, error) {
 			return nil, errors.Wrap(err2, "new onchain dkg client")
 		}
 
-		juelsPerFeeCoin, err2 := juelsfeecoin.NewLinkEthPriceProvider(
-			common.HexToAddress(cfg.LinkEthFeedAddress), chain.Client(), 1*time.Second)
-		if err2 != nil {
-			return nil, errors.Wrap(err2, "new link eth price provider")
-		}
-
 		// No need to error check here, we check these keys exist when validating
 		// the configuration.
 		encryptionSecretKey, _ := d.dkgEncryptKs.Get(cfg.DKGEncryptionPublicKey)
@@ -368,24 +359,21 @@ func (d *Delegate) ServicesForSpec(jobSpec job.Job) ([]job.ServiceCtx, error) {
 		}
 
 		coordinator, err2 := ocr2coordinator.New(
-			lggr.Named("OCR2VRFCoordinator"),
+			lggr.Named("OCR2RecoveryCoordinator"),
 			common.HexToAddress(spec.ContractID),
-			common.HexToAddress(cfg.VRFCoordinatorAddress),
 			common.HexToAddress(cfg.DKGContractAddress),
 			chain.Client(),
-			cfg.LookbackBlocks,
 			chain.LogPoller(),
-			chain.Config().EvmFinalityDepth(),
 		)
 		if err2 != nil {
-			return nil, errors.Wrap(err2, "create ocr2vrf coordinator")
+			return nil, errors.Wrap(err2, "create ocr2recovery coordinator")
 		}
-		l := d.lggr.Named("OCR2VRF").With(
+		l := d.lggr.Named("OCR2Recovery").With(
 			"jobName", jobSpec.Name.ValueOrZero(),
 			"jobID", jobSpec.ID,
 		)
-		vrfLogger := logger.NewOCRWrapper(l.With(
-			"vrfContractID", spec.ContractID), true, func(msg string) {
+		recoveryLogger := logger.NewOCRWrapper(l.With(
+			"recoveryContractID", spec.ContractID), true, func(msg string) {
 			d.lggr.ErrorIf(d.jobORM.RecordError(jobSpec.ID, msg), "unable to record error")
 		})
 		dkgLogger := logger.NewOCRWrapper(l.With(
@@ -395,42 +383,40 @@ func (d *Delegate) ServicesForSpec(jobSpec job.Job) ([]job.ServiceCtx, error) {
 		dkgReportingPluginFactoryDecorator := func(wrapped ocr2types.ReportingPluginFactory) ocr2types.ReportingPluginFactory {
 			return promwrapper.NewPromFactory(wrapped, "DKG", string(relay.EVM), chain.ID())
 		}
-		vrfReportingPluginFactoryDecorator := func(wrapped ocr2types.ReportingPluginFactory) ocr2types.ReportingPluginFactory {
-			return promwrapper.NewPromFactory(wrapped, "OCR2VRF", string(relay.EVM), chain.ID())
+		recoveryReportingPluginFactoryDecorator := func(wrapped ocr2types.ReportingPluginFactory) ocr2types.ReportingPluginFactory {
+			return promwrapper.NewPromFactory(wrapped, "OCR2Recovery", string(relay.EVM), chain.ID())
 		}
-		oracles, err2 := ocr2vrf.NewOCR2VRF(ocr2vrf.DKGVRFArgs{
-			VRFLogger:                          vrfLogger,
-			DKGLogger:                          dkgLogger,
-			BinaryNetworkEndpointFactory:       peerWrapper.Peer2,
-			V2Bootstrappers:                    bootstrapPeers,
-			OffchainKeyring:                    kb,
-			OnchainKeyring:                     kb,
-			VRFOffchainConfigDigester:          vrfProvider.OffchainConfigDigester(),
-			VRFContractConfigTracker:           vrfProvider.ContractConfigTracker(),
-			VRFContractTransmitter:             vrfProvider.ContractTransmitter(),
-			VRFDatabase:                        ocrDB,
-			VRFLocalConfig:                     lc,
-			VRFMonitoringEndpoint:              d.monitoringEndpointGen.GenMonitoringEndpoint(spec.ContractID),
-			DKGContractConfigTracker:           dkgProvider.ContractConfigTracker(),
-			DKGOffchainConfigDigester:          dkgProvider.OffchainConfigDigester(),
-			DKGContract:                        dkgpkg.NewOnchainContract(dkgContract, &altbn_128.G2{}),
-			DKGContractTransmitter:             dkgProvider.ContractTransmitter(),
-			DKGDatabase:                        ocrDB,
-			DKGLocalConfig:                     lc,
-			DKGMonitoringEndpoint:              d.monitoringEndpointGen.GenMonitoringEndpoint(cfg.DKGContractAddress),
-			Blockhashes:                        blockhashes.NewFixedBlockhashProvider(chain.LogPoller(), d.lggr, 256),
-			Serializer:                         reportserializer.NewReportSerializer(&altbn_128.G1{}),
-			JulesPerFeeCoin:                    juelsPerFeeCoin,
-			Coordinator:                        coordinator,
-			Esk:                                encryptionSecretKey.KyberScalar(),
-			Ssk:                                signingSecretKey.KyberScalar(),
-			KeyID:                              keyID,
-			DKGReportingPluginFactoryDecorator: dkgReportingPluginFactoryDecorator,
-			VRFReportingPluginFactoryDecorator: vrfReportingPluginFactoryDecorator,
-			DKGSharePersistence:                persistence.NewShareDB(d.db, d.lggr.Named("DKGShareDB"), d.cfg, big.NewInt(chainID), spec.Relay),
+		oracles, err2 := ocr2recovery.NewOCR2Recovery(ocr2recovery.DKGRecoveryArgs{
+			RecoveryLogger:                          recoveryLogger,
+			DKGLogger:                               dkgLogger,
+			BinaryNetworkEndpointFactory:            peerWrapper.Peer2,
+			V2Bootstrappers:                         bootstrapPeers,
+			OffchainKeyring:                         kb,
+			OnchainKeyring:                          kb,
+			RecoveryOffchainConfigDigester:          recoveryProvider.OffchainConfigDigester(),
+			RecoveryContractConfigTracker:           recoveryProvider.ContractConfigTracker(),
+			RecoveryContractTransmitter:             recoveryProvider.ContractTransmitter(),
+			RecoveryDatabase:                        ocrDB,
+			RecoveryLocalConfig:                     lc,
+			RecoveryMonitoringEndpoint:              d.monitoringEndpointGen.GenMonitoringEndpoint(spec.ContractID),
+			DKGContractConfigTracker:                dkgProvider.ContractConfigTracker(),
+			DKGOffchainConfigDigester:               dkgProvider.OffchainConfigDigester(),
+			DKGContract:                             dkgpkg.NewOnchainContract(dkgContract, &altbn_128.G2{}),
+			DKGContractTransmitter:                  dkgProvider.ContractTransmitter(),
+			DKGDatabase:                             ocrDB,
+			DKGLocalConfig:                          lc,
+			DKGMonitoringEndpoint:                   d.monitoringEndpointGen.GenMonitoringEndpoint(cfg.DKGContractAddress),
+			Serializer:                              reportserializer.NewReportSerializer(&altbn_128.G1{}),
+			Coordinator:                             coordinator,
+			Esk:                                     encryptionSecretKey.KyberScalar(),
+			Ssk:                                     signingSecretKey.KyberScalar(),
+			KeyID:                                   keyID,
+			DKGReportingPluginFactoryDecorator:      dkgReportingPluginFactoryDecorator,
+			RecoveryReportingPluginFactoryDecorator: recoveryReportingPluginFactoryDecorator,
+			DKGSharePersistence:                     persistence.NewShareDB(d.db, d.lggr.Named("DKGShareDB"), d.cfg, big.NewInt(chainID), spec.Relay),
 		})
 		if err2 != nil {
-			return nil, errors.Wrap(err2, "new ocr2vrf")
+			return nil, errors.Wrap(err2, "new ocr2recovery")
 		}
 
 		// RunResultSaver needs to be started first, so it's available
@@ -443,11 +429,11 @@ func (d *Delegate) ServicesForSpec(jobSpec job.Job) ([]job.ServiceCtx, error) {
 			lggr,
 		)
 
-		// NOTE: we return from here with the services because the OCR2VRF oracles are defined
-		// and exported from the ocr2vrf library. It takes care of running the DKG and OCR2VRF
+		// NOTE: we return from here with the services because the OCR2Recovery oracles are defined
+		// and exported from the ocr2recovery library. It takes care of running the DKG and OCR2Recovery
 		// oracles under the hood together.
 		oracleCtx := job.NewServiceAdapter(oracles)
-		return []job.ServiceCtx{runResultSaver, vrfProvider, dkgProvider, oracleCtx}, nil
+		return []job.ServiceCtx{runResultSaver, recoveryProvider, dkgProvider, oracleCtx}, nil
 	case job.OCR2Keeper:
 		keeperProvider, rgstry, encoder, logProvider, err2 := ocr2keeper.EVMDependencies(jobSpec, d.db, lggr, d.chainSet, d.pipelineRunner)
 		if err2 != nil {

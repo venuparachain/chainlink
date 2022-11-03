@@ -13,7 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	ocrtypes "github.com/smartcontractkit/libocr/offchainreporting2/types"
-	ocr2vrftypes "github.com/smartcontractkit/ocr2vrf/types"
+	ocr2recoverytypes "github.com/smartcontractkit/ocr2vrf/types"
 	"github.com/smartcontractkit/ocr2vrf/types/hash"
 	"github.com/smartcontractkit/sqlx"
 
@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	_        ocr2vrftypes.DKGSharePersistence = &shareDB{}
+	_        ocr2recoverytypes.DKGSharePersistence = &shareDB{}
 	zeroHash hash.Hash
 	buckets  = []float64{
 		float64(100 * time.Millisecond),
@@ -58,7 +58,7 @@ type shareDB struct {
 }
 
 // NewShareDB creates a new DKG share database.
-func NewShareDB(db *sqlx.DB, lggr logger.Logger, cfg pg.QConfig, chainID *big.Int, chainType relay.Network) ocr2vrftypes.DKGSharePersistence {
+func NewShareDB(db *sqlx.DB, lggr logger.Logger, cfg pg.QConfig, chainID *big.Int, chainType relay.Network) ocr2recoverytypes.DKGSharePersistence {
 	return &shareDB{
 		q:         pg.NewQ(db, lggr, cfg),
 		lggr:      lggr,
@@ -73,7 +73,7 @@ func (s *shareDB) WriteShareRecords(
 	ctx context.Context,
 	cfgDgst ocrtypes.ConfigDigest,
 	keyID [32]byte,
-	shareRecords []ocr2vrftypes.PersistentShareSetRecord,
+	shareRecords []ocr2recoverytypes.PersistentShareSetRecord,
 ) error {
 	lggr := s.lggr.With(
 		"configDigest", hexutil.Encode(cfgDgst[:]),
@@ -146,7 +146,7 @@ func (s *shareDB) ReadShareRecords(
 	cfgDgst ocrtypes.ConfigDigest,
 	keyID [32]byte,
 ) (
-	retrievedShares []ocr2vrftypes.PersistentShareSetRecord,
+	retrievedShares []ocr2recoverytypes.PersistentShareSetRecord,
 	err error,
 ) {
 	lggr := s.lggr.With(
@@ -185,7 +185,7 @@ WHERE config_digest = :config_digest
 	}
 
 	for _, share := range dkgShares {
-		playerIdx, _, err := ocr2vrftypes.UnmarshalPlayerIdx(share.Dealer)
+		playerIdx, _, err := ocr2recoverytypes.UnmarshalPlayerIdx(share.Dealer)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unmarshalling %x", share.Dealer)
 		}
@@ -196,7 +196,7 @@ WHERE config_digest = :config_digest
 
 		// NOTE: no integrity check on share.MarshaledShareRecord
 		// because caller will do it anyways, so it'd be wasteful.
-		retrievedShares = append(retrievedShares, ocr2vrftypes.PersistentShareSetRecord{
+		retrievedShares = append(retrievedShares, ocr2recoverytypes.PersistentShareSetRecord{
 			Dealer:               *playerIdx,
 			MarshaledShareRecord: share.MarshaledShareRecord,
 			Hash:                 h,
@@ -211,7 +211,7 @@ WHERE config_digest = :config_digest
 	return retrievedShares, nil
 }
 
-func shareHashes(shareRecords []ocr2vrftypes.PersistentShareSetRecord) []string {
+func shareHashes(shareRecords []ocr2recoverytypes.PersistentShareSetRecord) []string {
 	r := make([]string, len(shareRecords))
 	for i, record := range shareRecords {
 		r[i] = hexutil.Encode(record.Hash[:])
