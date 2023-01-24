@@ -56,6 +56,8 @@ type BenchmarkTestEntry struct {
 }
 
 func keeperBenchmark(t *testing.T, benchmarkTestEntry *BenchmarkTestEntry) {
+	numberOfChains := len(networks.SelectedNetworks)
+	chainClients := make([]blockchain.EVMClient, numberOfChains)
 	benchmarkNetwork := blockchain.LoadNetworkFromEnvironment()
 	testEnvironment := environment.New(&environment.Config{InsideK8s: true})
 	testEnvironment.
@@ -76,11 +78,15 @@ func keeperBenchmark(t *testing.T, benchmarkTestEntry *BenchmarkTestEntry) {
 	require.NoError(t, err, "Error deploying test environment")
 	log.Info().Str("Namespace", testEnvironment.Cfg.Namespace).Msg("Connected to Keepers Benchmark Environment")
 
-	chainClient, err := blockchain.NewEVMClient(benchmarkNetwork, testEnvironment)
-	require.NoError(t, err, "Error connecting to blockchain")
+	for i := 0; i < numberOfChains; i++ {
+		chainClient, err := blockchain.NewEVMClient(networks.SelectedNetworks[i], testEnvironment)
+		require.NoError(t, err, "Error connecting to blockchain")
+		chainClients = append(chainClients, chainClient)
+	}
+
 	keeperBenchmarkTest := testsetups.NewKeeperBenchmarkTest(
 		testsetups.KeeperBenchmarkTestInputs{
-			BlockchainClient:  chainClient,
+			BlockchainClients: chainClients,
 			NumberOfContracts: NumberOfContracts,
 			RegistryVersions:  benchmarkTestEntry.registryVersions,
 			KeeperRegistrySettings: &contracts.KeeperRegistrySettings{
@@ -110,9 +116,12 @@ func keeperBenchmark(t *testing.T, benchmarkTestEntry *BenchmarkTestEntry) {
 		},
 	)
 	t.Cleanup(func() {
-		if err = actions.TeardownRemoteSuite(keeperBenchmarkTest.TearDownVals(t)); err != nil {
-			log.Error().Err(err).Msg("Error when tearing down remote suite")
+		for bcIndex := range chainClients {
+			if err = actions.TeardownRemoteSuite(keeperBenchmarkTest.TearDownVals(t, bcIndex)); err != nil {
+				log.Error().Err(err).Msg("Error when tearing down remote suite")
+			}
 		}
+
 	})
 	keeperBenchmarkTest.Setup(t, testEnvironment)
 	keeperBenchmarkTest.Run(t)
