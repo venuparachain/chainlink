@@ -135,8 +135,9 @@ var arbitrum = ClientErrors{
 // https://github.com/ethereum-optimism/op-geth/blob/optimism/core/error.go
 // TODO: remove this when all Optimism networks have migrated: https://app.shortcut.com/chainlinklabs/story/55389/remove-optimism-pre-bedrock-error-messages
 var optimism = ClientErrors{
-	L2FeeTooLow:  regexp.MustCompile(`(: |^)fee too low: \d+, use at least tx.gasLimit = \d+ and tx.gasPrice = \d+$`),
-	L2FeeTooHigh: regexp.MustCompile(`(: |^)fee too high: \d+, use less than \d+ \* [0-9\.]+$`),
+	L2FeeTooLow:     regexp.MustCompile(`(: |^)fee too low: \d+, use at least tx.gasLimit = \d+ and tx.gasPrice = \d+$`),
+	L2FeeTooHigh:    regexp.MustCompile(`(: |^)fee too high: \d+, use less than \d+ \* [0-9\.]+$`),
+	InsufficientEth: regexp.MustCompile(`(: |^)(insufficient funds for transfer|insufficient funds for gas \* price \+ value( \+ l1Fee)?|insufficient balance for transfer)$`),
 }
 
 var metis = ClientErrors{
