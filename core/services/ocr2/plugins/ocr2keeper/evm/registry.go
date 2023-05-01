@@ -19,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink/v2/core/chains/evm"
 	"github.com/smartcontractkit/chainlink/v2/core/chains/evm/client"
 	"github.com/smartcontractkit/chainlink/v2/core/chains/evm/logpoller"
+	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/generated"
 	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/generated/keeper_registry_wrapper2_0"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 	"github.com/smartcontractkit/chainlink/v2/core/services/ocr2/models"
@@ -40,6 +41,15 @@ var (
 	separator                        = "|"
 	reInitializationDelay            = 15 * time.Minute
 	logEventLookback           int64 = 250
+)
+
+type stateEventType int32
+
+const (
+	stateUpkeepRegistered stateEventType = iota
+	stateUpkeepCanceled
+	stateUpkeepPaused
+	stateUpkeepUnpaused
 )
 
 type LatestBlockGetter interface {
@@ -129,6 +139,12 @@ type EvmRegistry struct {
 	headFunc      func(types.BlockKey)
 	runState      int
 	runError      error
+
+	stateHandlers []UpkeepStateHandler
+}
+
+type UpkeepStateHandler interface {
+	Handle(stateEventType, generated.AbigenLog) error
 }
 
 // GetActiveUpkeepKeys uses the latest head and map of all active upkeeps to build a
@@ -379,7 +395,6 @@ func (r *EvmRegistry) registerEvents(chainID uint64, addr common.Address) error 
 }
 
 func (r *EvmRegistry) processUpkeepStateLog(l logpoller.Log) error {
-
 	hash := l.TxHash.String()
 	if _, ok := r.txHashes[hash]; ok {
 		return nil
@@ -393,6 +408,20 @@ func (r *EvmRegistry) processUpkeepStateLog(l logpoller.Log) error {
 	}
 
 	switch l := abilog.(type) {
+	case *keeper_registry_wrapper2_0.KeeperRegistryUpkeepCanceled:
+		r.lggr.Debugf("KeeperRegistryUpkeepCanceled log detected for upkeep ID %s in transaction %s", l.Id.String(), hash)
+		// r.addToActive(l.Id, false)
+		if err := r.invokeUpkeepStateHandlers(stateUpkeepCanceled, abilog); err != nil {
+			r.lggr.Warnf("failed to handle upkeep state change for upkeep ID %s in transaction %s", l.Id.String(), hash)
+			return err
+		}
+	case *keeper_registry_wrapper2_0.KeeperRegistryUpkeepPaused:
+		r.lggr.Debugf("KeeperRegistryUpkeepPaused log detected for upkeep ID %s in transaction %s", l.Id.String(), hash)
+		// r.addToActive(l.Id, false)
+		if err := r.invokeUpkeepStateHandlers(stateUpkeepPaused, abilog); err != nil {
+			r.lggr.Warnf("failed to handle upkeep state change for upkeep ID %s in transaction %s", l.Id.String(), hash)
+			return err
+		}
 	case *keeper_registry_wrapper2_0.KeeperRegistryUpkeepRegistered:
 		r.lggr.Debugf("KeeperRegistryUpkeepRegistered log detected for upkeep ID %s in transaction %s", l.Id.String(), hash)
 		r.addToActive(l.Id, false)
@@ -407,6 +436,15 @@ func (r *EvmRegistry) processUpkeepStateLog(l logpoller.Log) error {
 		r.addToActive(l.Id, true)
 	}
 
+	return nil
+}
+
+func (r *EvmRegistry) invokeUpkeepStateHandlers(s stateEventType, abilog generated.AbigenLog) error {
+	for _, handler := range r.stateHandlers {
+		if err := handler.Handle(s, abilog); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
