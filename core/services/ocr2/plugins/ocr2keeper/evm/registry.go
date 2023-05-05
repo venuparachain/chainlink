@@ -95,10 +95,11 @@ func NewEVMRegistryServiceV2_0(addr common.Address, client evm.Chain, mc *models
 }
 
 var upkeepStateEvents = []common.Hash{
-	keeper_registry_wrapper2_0.KeeperRegistryUpkeepRegistered{}.Topic(),  // adds new upkeep id to registry
-	keeper_registry_wrapper2_0.KeeperRegistryUpkeepReceived{}.Topic(),    // adds new upkeep id to registry via migration
-	keeper_registry_wrapper2_0.KeeperRegistryUpkeepGasLimitSet{}.Topic(), // unpauses an upkeep
-	keeper_registry_wrapper2_0.KeeperRegistryUpkeepUnpaused{}.Topic(),    // updates the gas limit for an upkeep
+	keeper_registry_wrapper2_0.KeeperRegistryUpkeepRegistered{}.Topic(),        // adds new upkeep id to registry
+	keeper_registry_wrapper2_0.KeeperRegistryUpkeepReceived{}.Topic(),          // adds new upkeep id to registry via migration
+	keeper_registry_wrapper2_0.KeeperRegistryUpkeepGasLimitSet{}.Topic(),       // unpauses an upkeep
+	keeper_registry_wrapper2_0.KeeperRegistryUpkeepUnpaused{}.Topic(),          // updates the gas limit for an upkeep
+	keeper_registry_wrapper2_0.KeeperRegistryUpkeepOffchainConfigSet{}.Topic(), // updates upkeep config
 }
 
 var upkeepActiveEvents = []common.Hash{
