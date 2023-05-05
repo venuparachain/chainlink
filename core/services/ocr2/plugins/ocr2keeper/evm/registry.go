@@ -72,17 +72,19 @@ func NewEVMRegistryServiceV2_0(addr common.Address, client evm.Chain, mc *models
 			hb:     client.HeadBroadcaster(),
 			chHead: make(chan types.BlockKey, 1),
 		},
-		lggr:     lggr,
-		poller:   client.LogPoller(),
-		addr:     addr,
-		client:   client.Client(),
-		txHashes: make(map[string]bool),
-		registry: registry,
-		abi:      abi,
-		active:   make(map[string]activeUpkeep),
-		packer:   &evmRegistryPackerV2_0{abi: abi},
-		headFunc: func(types.BlockKey) {},
-		chLog:    make(chan logpoller.Log, 1000),
+		lggr:       lggr,
+		poller:     client.LogPoller(),
+		addr:       addr,
+		client:     client.Client(),
+		txHashes:   make(map[string]bool),
+		registry:   registry,
+		abi:        abi,
+		active:     make(map[string]activeUpkeep),
+		inactive:   make(map[string]activeUpkeep),
+		packer:     &evmRegistryPackerV2_0{abi: abi},
+		headFunc:   func(types.BlockKey) {},
+		chLog:      make(chan logpoller.Log, 1000),
+		logFilters: newLogFiltersProvider(client.LogPoller()),
 	}
 
 	if err := r.registerEvents(client.ID().Uint64(), addr); err != nil {
@@ -135,6 +137,7 @@ type EvmRegistry struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	active        map[string]activeUpkeep
+	inactive      map[string]activeUpkeep
 	headFunc      func(types.BlockKey)
 	runState      int
 	runError      error
@@ -456,9 +459,11 @@ func (r *EvmRegistry) setInactiveUpkeep(id *big.Int) {
 	defer r.mu.Unlock()
 
 	uid := id.String()
-	if _, ok := r.active[uid]; ok {
+	au, ok := r.active[uid]
+	if ok {
 		delete(r.active, uid)
 	}
+	r.inactive[uid] = au
 }
 
 func (r *EvmRegistry) updateUpkeepConfig(id *big.Int, upkeepCfg []byte) {
