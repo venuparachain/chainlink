@@ -307,6 +307,17 @@ var (
 		GasEstimationBuffer:       1000,
 	}
 
+	PolygonZkEvm = blockchain.EVMNetwork{
+		Name:                      "Polygon zkEVM",
+		ClientImplementation:      blockchain.PolygonZkEvmClientImplementation,
+		ChainID:                   1442,
+		Simulated:                 false,
+		ChainlinkTransactionLimit: 5000,
+		Timeout:                   blockchain.JSONStrDuration{Duration: time.Minute},
+		MinimumConfirmations:      1,
+		GasEstimationBuffer:       1000,
+	}
+
 	mappedNetworks = map[string]blockchain.EVMNetwork{
 		"SIMULATED":        SimulatedEVM,
 		"SIMULATED_1":      SimulatedEVMNonDev1,
@@ -330,6 +341,7 @@ var (
 		"MUMBAI":           PolygonMumbai,
 		"AVALANCHE_FUJI":   AvalancheFuji,
 		"QUORUM":           Quorum,
+		"POLYGON_ZKEVM":    PolygonZkEvm,
 	}
 )
 
