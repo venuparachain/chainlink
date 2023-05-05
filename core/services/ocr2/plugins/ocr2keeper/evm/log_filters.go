@@ -3,10 +3,15 @@ package evm
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/smartcontractkit/chainlink/v2/core/chains/evm/logpoller"
+)
+
+var (
+	logRetention = time.Hour // TODO: check what value to use
 )
 
 // toLogFilter converts the given upkeep config into a log filter
@@ -19,6 +24,7 @@ func toLogFilter(ltcfg *LogTriggerUpkeepConfig, upkeepID string) logpoller.Filte
 		Name:      formatFilterName(upkeepID),
 		EventSigs: sigs,
 		Addresses: []common.Address{common.BytesToAddress([]byte(ltcfg.Address))},
+		Retention: logRetention,
 	}
 }
 
