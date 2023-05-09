@@ -21,16 +21,15 @@ func toLogFilter(ltcfg *LogTriggerUpkeepConfig, upkeepID string) logpoller.Filte
 	}
 	sigs = ltcfg.addFilters(sigs)
 	return logpoller.Filter{
-		Name:      formatFilterName(upkeepID),
+		Name:      filterName(upkeepID),
 		EventSigs: sigs,
 		Addresses: []common.Address{common.BytesToAddress([]byte(ltcfg.Address))},
 		Retention: logRetention,
 	}
 }
 
-func formatFilterName(upkeepID string) string {
-	// TODO
-	return upkeepID
+func filterName(upkeepID string) string {
+	return logpoller.FilterName(upkeepID)
 }
 
 // logFiltersProvider manages log filters for upkeeps
@@ -53,11 +52,13 @@ func (lfp *logFiltersProvider) Register(upkeepID string, rawCfg []byte) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
+	// remove old filter (if exist) for this upkeep TODO: check if needed
+	// _ = lfp.poller.UnregisterFilter(filterName(upkeepID), nil)
 	return lfp.poller.RegisterFilter(toLogFilter(cfg, upkeepID))
 }
 
 func (lfp *logFiltersProvider) UnRegister(upkeepID string) error {
-	return lfp.poller.UnregisterFilter(formatFilterName(upkeepID), nil)
+	return lfp.poller.UnregisterFilter(filterName(upkeepID), nil)
 }
 
 // TODO: move?
