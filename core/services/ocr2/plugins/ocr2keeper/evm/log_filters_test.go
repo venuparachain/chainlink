@@ -51,7 +51,7 @@ func TestLogFiltersProvider_Register(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mp := new(mocks.LogPoller)
 			if tc.upkeepCfg != nil {
-				mp.On("RegisterFilter", toLogFilter(tc.upkeepCfg, tc.upkeepID.String())).Return(nil)
+				mp.On("RegisterFilter", newLogFilter(tc.upkeepCfg, tc.upkeepID.String())).Return(nil)
 			}
 			lfp := newLogFiltersProvider(mp)
 			if len(tc.rawUpkeepCfg) == 0 {
