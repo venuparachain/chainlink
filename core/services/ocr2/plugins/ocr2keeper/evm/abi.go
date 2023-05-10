@@ -80,15 +80,15 @@ func (rp *evmRegistryPackerV2_0) UnpackPerformResult(raw string) (bool, error) {
 	return *abi.ConvertType(out[0], new(bool)).(*bool), nil
 }
 
-func (rp *evmRegistryPackerV2_0) UnpackUpkeepResult(id *big.Int, raw string) (activeUpkeep, error) {
+func (rp *evmRegistryPackerV2_0) UnpackUpkeepResult(id *big.Int, raw string) (upkeepEntry, error) {
 	b, err := hexutil.Decode(raw)
 	if err != nil {
-		return activeUpkeep{}, err
+		return upkeepEntry{}, err
 	}
 
 	out, err := rp.abi.Methods["getUpkeep"].Outputs.UnpackValues(b)
 	if err != nil {
-		return activeUpkeep{}, fmt.Errorf("%w: unpack getUpkeep return: %s", err, raw)
+		return upkeepEntry{}, fmt.Errorf("%w: unpack getUpkeep return: %s", err, raw)
 	}
 
 	type upkeepInfo struct {
@@ -105,10 +105,10 @@ func (rp *evmRegistryPackerV2_0) UnpackUpkeepResult(id *big.Int, raw string) (ac
 	}
 	temp := *abi.ConvertType(out[0], new(upkeepInfo)).(*upkeepInfo)
 
-	au := activeUpkeep{
-		ID:              id,
-		PerformGasLimit: temp.ExecuteGas,
-		CheckData:       temp.CheckData,
+	au := upkeepEntry{
+		id:              id,
+		performGasLimit: temp.ExecuteGas,
+		offchainConfig:  temp.OffchainConfig,
 	}
 
 	return au, nil

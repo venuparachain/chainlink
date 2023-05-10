@@ -42,15 +42,6 @@ var (
 	logEventLookback           int64 = 250
 )
 
-type stateEventType int32
-
-const (
-	stateUpkeepRegistered stateEventType = iota
-	stateUpkeepCanceled
-	stateUpkeepPaused
-	stateUpkeepUnpaused
-)
-
 type LatestBlockGetter interface {
 	LatestBlock() int64
 }
@@ -79,8 +70,7 @@ func NewEVMRegistryServiceV2_0(addr common.Address, client evm.Chain, mc *models
 		txHashes:   make(map[string]bool),
 		registry:   registry,
 		abi:        abi,
-		active:     make(map[string]activeUpkeep),
-		inactive:   make(map[string]activeUpkeep),
+		upkeeps:    make(map[string]upkeepEntry),
 		packer:     &evmRegistryPackerV2_0{abi: abi},
 		headFunc:   func(types.BlockKey) {},
 		chLog:      make(chan logpoller.Log, 1000),
@@ -114,10 +104,57 @@ type checkResult struct {
 	err error
 }
 
-type activeUpkeep struct {
-	ID              *big.Int
-	PerformGasLimit uint32
-	CheckData       []byte
+type upkeepState int32
+
+const (
+	stateActive upkeepState = iota
+	stateInactive
+)
+
+type upkeepTriggerType int32
+
+const (
+	conditionalTrigger upkeepTriggerType = iota
+	logTrigger
+)
+
+type upkeepEntry struct {
+	id              *big.Int
+	state           upkeepState
+	triggerType     upkeepTriggerType
+	performGasLimit uint32
+	offchainConfig  []byte
+}
+
+type UpkeepFilter func(upkeepEntry) bool
+
+type upkeepFilters []UpkeepFilter
+
+func (uf upkeepFilters) Apply(upkeep upkeepEntry) bool {
+	for _, f := range uf {
+		if !f(upkeep) {
+			return false
+		}
+	}
+	return true
+}
+
+func ActiveUpkeepsFilter() UpkeepFilter {
+	return func(upkeep upkeepEntry) bool {
+		return upkeep.state == stateActive
+	}
+}
+
+func LogUpkeepsFilter() UpkeepFilter {
+	return func(upkeep upkeepEntry) bool {
+		return upkeep.triggerType == logTrigger
+	}
+}
+
+func ConditionalUpkeepsFilter() UpkeepFilter {
+	return func(upkeep upkeepEntry) bool {
+		return upkeep.triggerType == conditionalTrigger
+	}
 }
 
 type EvmRegistry struct {
@@ -137,8 +174,7 @@ type EvmRegistry struct {
 	lastPollBlock int64
 	ctx           context.Context
 	cancel        context.CancelFunc
-	active        map[string]activeUpkeep
-	inactive      map[string]activeUpkeep
+	upkeeps       map[string]upkeepEntry
 	headFunc      func(types.BlockKey)
 	runState      int
 	runError      error
@@ -148,18 +184,26 @@ type EvmRegistry struct {
 
 // GetActiveUpkeepKeys uses the latest head and map of all active upkeeps to build a
 // slice of upkeep keys.
-func (r *EvmRegistry) GetActiveUpkeepIDs(context.Context) ([]types.UpkeepIdentifier, error) {
+func (r *EvmRegistry) GetActiveUpkeepIDs(ctx context.Context) ([]types.UpkeepIdentifier, error) {
+	return r.GetUpkeepIDs(ctx, ActiveUpkeepsFilter(), ConditionalUpkeepsFilter())
+}
+
+// GetUpkeepIDs accepts filters to return a customized slice of upkeep.
+func (r *EvmRegistry) GetUpkeepIDs(ctx context.Context, filters ...UpkeepFilter) ([]types.UpkeepIdentifier, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	keys := make([]types.UpkeepIdentifier, len(r.active))
-	var i int
-	for _, value := range r.active {
-		keys[i] = types.UpkeepIdentifier(value.ID.String())
-		i++
+	uf := upkeepFilters(filters)
+	results := make([]types.UpkeepIdentifier, 0)
+
+	for _, upkeep := range r.upkeeps {
+		if !uf.Apply(upkeep) {
+			continue
+		}
+		results = append(results, types.UpkeepIdentifier(upkeep.id.String()))
 	}
 
-	return keys, nil
+	return results, nil
 }
 
 func (r *EvmRegistry) CheckUpkeep(ctx context.Context, keys ...types.UpkeepKey) (types.UpkeepResults, error) {
@@ -299,7 +343,7 @@ func (r *EvmRegistry) initialize() error {
 	startupCtx, cancel := context.WithTimeout(r.ctx, reInitializationDelay)
 	defer cancel()
 
-	idMap := make(map[string]activeUpkeep)
+	upkeeps := make(map[string]upkeepEntry)
 
 	r.lggr.Debugf("Re-initializing active upkeeps list")
 	// get active upkeep ids from contract
@@ -315,20 +359,20 @@ func (r *EvmRegistry) initialize() error {
 			batch = len(ids) - offset
 		}
 
-		actives, err := r.getUpkeepConfigs(startupCtx, ids[offset:offset+batch])
+		entries, err := r.createUpkeepEntries(startupCtx, ids[offset:offset+batch])
 		if err != nil {
 			return fmt.Errorf("failed to get configs for id batch (length '%d'): %s", batch, err)
 		}
 
-		for _, active := range actives {
-			idMap[active.ID.String()] = active
+		for _, entry := range entries {
+			upkeeps[entry.id.String()] = entry
 		}
 
 		offset += batch
 	}
 
 	r.mu.Lock()
-	r.active = idMap
+	r.upkeeps = upkeeps
 	r.mu.Unlock()
 
 	return nil
@@ -411,67 +455,88 @@ func (r *EvmRegistry) processUpkeepStateLog(l logpoller.Log) error {
 		r.updateUpkeepConfig(l.Id, l.OffchainConfig)
 	case *keeper_registry_wrapper2_0.KeeperRegistryUpkeepCanceled:
 		r.lggr.Debugf("KeeperRegistryUpkeepCanceled log detected for upkeep ID %s in transaction %s", l.Id.String(), hash)
-		r.setInactiveUpkeep(l.Id)
+		r.updateUpkeepState(l.Id, stateInactive)
 	case *keeper_registry_wrapper2_0.KeeperRegistryUpkeepPaused:
 		r.lggr.Debugf("KeeperRegistryUpkeepPaused log detected for upkeep ID %s in transaction %s", l.Id.String(), hash)
-		r.setInactiveUpkeep(l.Id)
+		r.updateUpkeepState(l.Id, stateInactive)
 	case *keeper_registry_wrapper2_0.KeeperRegistryUpkeepRegistered:
 		r.lggr.Debugf("KeeperRegistryUpkeepRegistered log detected for upkeep ID %s in transaction %s", l.Id.String(), hash)
-		r.addActiveUpkeep(l.Id, false)
+		r.addUpkeep(l.Id, false)
 	case *keeper_registry_wrapper2_0.KeeperRegistryUpkeepReceived:
 		r.lggr.Debugf("KeeperRegistryUpkeepReceived log detected for upkeep ID %s in transaction %s", l.Id.String(), hash)
-		r.addActiveUpkeep(l.Id, false)
+		r.addUpkeep(l.Id, false)
 	case *keeper_registry_wrapper2_0.KeeperRegistryUpkeepUnpaused:
 		r.lggr.Debugf("KeeperRegistryUpkeepUnpaused log detected for upkeep ID %s in transaction %s", l.Id.String(), hash)
-		r.addActiveUpkeep(l.Id, false)
+		r.addUpkeep(l.Id, false)
 	case *keeper_registry_wrapper2_0.KeeperRegistryUpkeepGasLimitSet:
 		r.lggr.Debugf("KeeperRegistryUpkeepGasLimitSet log detected for upkeep ID %s in transaction %s", l.Id.String(), hash)
-		r.addActiveUpkeep(l.Id, true)
+		r.addUpkeep(l.Id, true)
 	}
 
 	return nil
 }
 
-func (r *EvmRegistry) addActiveUpkeep(id *big.Int, force bool) {
+func (r *EvmRegistry) addUpkeep(id *big.Int, force bool) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.active == nil {
-		r.active = make(map[string]activeUpkeep)
+	if r.upkeeps == nil {
+		r.upkeeps = make(map[string]upkeepEntry)
 	}
+	_, ok := r.upkeeps[id.String()]
+	r.mu.Unlock()
 
-	if _, ok := r.active[id.String()]; !ok || force {
-		actives, err := r.getUpkeepConfigs(r.ctx, []*big.Int{id})
+	if !ok || force {
+		entries, err := r.createUpkeepEntries(r.ctx, []*big.Int{id})
 		if err != nil {
 			r.lggr.Errorf("failed to get upkeep configs during adding active upkeep: %w", err)
 			return
 		}
 
-		if len(actives) != 1 {
+		if len(entries) != 1 {
 			return
 		}
-
-		r.active[id.String()] = actives[0]
+		r.mu.Lock()
+		r.upkeeps[id.String()] = entries[0]
+		r.mu.Unlock()
+		return
 	}
-}
-
-func (r *EvmRegistry) setInactiveUpkeep(id *big.Int) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	uid := id.String()
-	au, ok := r.active[uid]
-	if ok {
-		delete(r.active, uid)
-	}
-	r.inactive[uid] = au
+	// otherwise, just update the state to active
+	r.updateUpkeepState(id, stateActive)
 }
 
 func (r *EvmRegistry) updateUpkeepConfig(id *big.Int, upkeepCfg []byte) {
-	// TODO: check is log upkeep before adding a log filter
-	if err := r.logFilters.Register(id.String(), upkeepCfg); err != nil {
-		r.lggr.Debugw("failed to register log filter", "upkeepID", id.String())
+	r.mu.Lock()
+
+	upkeep, ok := r.upkeeps[id.String()]
+	if !ok {
+		r.mu.Unlock()
+		// TODO: TBD if we want to add a new upkeep config if it doesn't exist
+		r.lggr.Debugf("received update for upkeep config for id %s that does not exist", id.String())
+		return
 	}
+	upkeep.offchainConfig = upkeepCfg
+	r.upkeeps[id.String()] = upkeep
+	r.mu.Unlock()
+
+	switch upkeep.triggerType {
+	case logTrigger:
+		if err := r.logFilters.Register(id.String(), upkeepCfg); err != nil {
+			r.lggr.Debugw("failed to register log filter", "upkeepID", id.String())
+		}
+	default:
+	}
+}
+
+func (r *EvmRegistry) updateUpkeepState(id *big.Int, state upkeepState) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	upkeep, ok := r.upkeeps[id.String()]
+	if !ok {
+		// TODO: TBD if we want to add a new upkeep config if it doesn't exist
+		r.lggr.Debugf("received update for upkeep config for id %s that does not exist", id.String())
+		return
+	}
+	upkeep.state = state
 }
 
 func (r *EvmRegistry) buildCallOpts(ctx context.Context, block *big.Int) (*bind.CallOpts, error) {
@@ -555,11 +620,11 @@ func (r *EvmRegistry) doCheck(ctx context.Context, keys []types.UpkeepKey, chRes
 		}
 
 		r.mu.RLock()
-		up, ok := r.active[id.String()]
+		up, ok := r.upkeeps[id.String()]
 		r.mu.RUnlock()
 
 		if ok {
-			upkeepResults[i].ExecuteGas = up.PerformGasLimit
+			upkeepResults[i].ExecuteGas = up.performGasLimit
 		}
 	}
 
@@ -706,9 +771,9 @@ func (r *EvmRegistry) simulatePerformUpkeeps(ctx context.Context, checkResults [
 }
 
 // TODO (AUTO-2013): Have better error handling to not return nil results in case of partial errors
-func (r *EvmRegistry) getUpkeepConfigs(ctx context.Context, ids []*big.Int) ([]activeUpkeep, error) {
+func (r *EvmRegistry) createUpkeepEntries(ctx context.Context, ids []*big.Int) ([]upkeepEntry, error) {
 	if len(ids) == 0 {
-		return []activeUpkeep{}, nil
+		return []upkeepEntry{}, nil
 	}
 
 	var (
@@ -749,7 +814,7 @@ func (r *EvmRegistry) getUpkeepConfigs(ctx context.Context, ids []*big.Int) ([]a
 
 	var (
 		multiErr error
-		results  = make([]activeUpkeep, len(ids))
+		results  = make([]upkeepEntry, len(ids))
 	)
 
 	for i, req := range uReqs {

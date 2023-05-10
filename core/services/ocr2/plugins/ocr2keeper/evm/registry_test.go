@@ -37,11 +37,11 @@ func TestGetActiveUpkeepKeys(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			actives := make(map[string]activeUpkeep)
+			upkeeps := make(map[string]upkeepEntry)
 			for _, id := range test.ActiveIDs {
 				idNum := big.NewInt(0)
 				idNum.SetString(id, 10)
-				actives[id] = activeUpkeep{ID: idNum}
+				upkeeps[id] = upkeepEntry{id: idNum}
 			}
 
 			mht := htmocks.NewHeadTracker(t)
@@ -50,7 +50,7 @@ func TestGetActiveUpkeepKeys(t *testing.T) {
 				HeadProvider: HeadProvider{
 					ht: mht,
 				},
-				active: actives,
+				upkeeps: upkeeps,
 			}
 
 			keys, err := rg.GetActiveUpkeepIDs(context.Background())
