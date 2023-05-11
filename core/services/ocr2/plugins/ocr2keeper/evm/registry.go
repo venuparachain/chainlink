@@ -452,6 +452,7 @@ func (r *EvmRegistry) processUpkeepStateLog(l logpoller.Log) error {
 
 	switch l := abilog.(type) {
 	case *keeper_registry_wrapper2_0.KeeperRegistryUpkeepOffchainConfigSet:
+		r.lggr.Debugf("KeeperRegistryUpkeepOffchainConfigSet log detected for upkeep ID %s in transaction %s", l.Id.String(), hash)
 		r.updateUpkeepConfig(l.Id, l.OffchainConfig)
 	case *keeper_registry_wrapper2_0.KeeperRegistryUpkeepCanceled:
 		r.lggr.Debugf("KeeperRegistryUpkeepCanceled log detected for upkeep ID %s in transaction %s", l.Id.String(), hash)
@@ -513,6 +514,7 @@ func (r *EvmRegistry) updateUpkeepConfig(id *big.Int, upkeepCfg []byte) {
 		r.lggr.Debugf("received update for upkeep config for id %s that does not exist", id.String())
 		return
 	}
+	r.lggr.Debugw("updating upkeep config", "upkeepID", id.String(), "upkeepCfg", hexutil.Encode(upkeepCfg))
 	upkeep.offchainConfig = upkeepCfg
 	r.upkeeps[id.String()] = upkeep
 	r.mu.Unlock()
