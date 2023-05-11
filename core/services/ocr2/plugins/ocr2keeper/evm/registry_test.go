@@ -72,6 +72,74 @@ func TestGetActiveUpkeepKeys(t *testing.T) {
 	}
 }
 
+func TestGetUpkeepIDs(t *testing.T) {
+	tests := []struct {
+		name         string
+		ids          []string
+		types        []upkeepTriggerType
+		filters      []UpkeepFilter
+		expectedErr  error
+		expectedKeys []types.UpkeepIdentifier
+	}{
+		{
+			name:         "no upkeeps",
+			ids:          []string{},
+			types:        []upkeepTriggerType{},
+			expectedKeys: []types.UpkeepIdentifier{},
+		},
+		{
+			name:    "all upkeeps",
+			ids:     []string{"8", "9"},
+			types:   []upkeepTriggerType{logTrigger, conditionalTrigger},
+			filters: []UpkeepFilter{ActiveUpkeepsFilter()},
+			expectedKeys: []types.UpkeepIdentifier{
+				types.UpkeepIdentifier("8"),
+				types.UpkeepIdentifier("9"),
+			},
+		},
+		{
+			name:    "log upkeeps",
+			ids:     []string{"8", "9"},
+			types:   []upkeepTriggerType{logTrigger, conditionalTrigger},
+			filters: []UpkeepFilter{LogUpkeepsFilter()},
+			expectedKeys: []types.UpkeepIdentifier{
+				types.UpkeepIdentifier("8"),
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			upkeeps := make(map[string]upkeepEntry)
+			for _, id := range tc.ids {
+				idNum := big.NewInt(0)
+				idNum.SetString(id, 10)
+				upkeeps[id] = upkeepEntry{id: idNum}
+			}
+
+			rg := &EvmRegistry{
+				upkeeps: upkeeps,
+			}
+
+			keys, err := rg.GetUpkeepIDs(context.Background(), tc.filters...)
+
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr)
+			} else {
+				assert.Nil(t, err)
+			}
+
+			if len(tc.expectedKeys) > 0 {
+				for _, key := range keys {
+					assert.Contains(t, tc.expectedKeys, key)
+				}
+			} else {
+				assert.Equal(t, tc.expectedKeys, keys)
+			}
+		})
+	}
+}
+
 func TestPollLogs(t *testing.T) {
 	tests := []struct {
 		Name             string
