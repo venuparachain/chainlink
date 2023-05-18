@@ -507,7 +507,7 @@ func TestConfig_Marshal(t *testing.T) {
 				},
 
 				HeadTracker: evmcfg.HeadTracker{
-					HistoryDepth:     ptr[uint32](15),
+					TotalHeadsLimit:  ptr[uint32](15),
 					MaxBufferSize:    ptr[uint32](17),
 					SamplingInterval: &hour,
 				},

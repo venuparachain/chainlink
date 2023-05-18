@@ -14,15 +14,19 @@ import (
 type HeadSaver interface {
 	// Save updates the latest block number, if indeed the latest, and persists
 	// this number in case of reboot.
-	Save(ctx context.Context, head *evmtypes.Head) error
+	Save(ctx context.Context, head *evmtypes.Head, latestFinalized *evmtypes.Head) error
 	// LoadFromDB loads latest EvmHeadTrackerHistoryDepth heads, returns the latest chain.
-	LoadFromDB(ctx context.Context) (*evmtypes.Head, error)
+	LoadFromDB(ctx context.Context, head *evmtypes.Head) (*evmtypes.Head, error)
 	// LatestHeadFromDB returns the highest seen head from DB.
 	LatestHeadFromDB(ctx context.Context) (*evmtypes.Head, error)
 	// LatestChain returns the block header with the highest number that has been seen, or nil.
 	LatestChain() *evmtypes.Head
 	// Chain returns a head for the specified hash, or nil.
 	Chain(hash common.Hash) *evmtypes.Head
+	// LatestFinalizedHead returns the latest finalized head from heads array.
+	LatestFinalizedHead() *evmtypes.Head
+	// LatestFinalizedBlock returns the latest finalized block given a current head number in case finality tag is not enabled.
+	LatestFinalizedBlock(ctx context.Context, currentHeadNumber int64) (*evmtypes.Head, error)
 }
 
 // HeadTracker holds and stores the latest block number experienced by this particular node in a thread safe manner.
@@ -31,9 +35,8 @@ type HeadSaver interface {
 //go:generate mockery --quiet --name HeadTracker --output ../mocks/ --case=underscore
 type HeadTracker interface {
 	services.ServiceCtx
-	// Backfill given a head will fill in any missing heads up to the given depth
-	// (used for testing)
-	Backfill(ctx context.Context, headWithChain *evmtypes.Head, depth uint) (err error)
+	// Backfill given a head will fill in any missing heads up to the given latestFinalized
+	Backfill(ctx context.Context, headWithChain *evmtypes.Head, latestFinalized *evmtypes.Head) (err error)
 	LatestChain() *evmtypes.Head
 }
 

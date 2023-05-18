@@ -32,6 +32,7 @@ type ChainScopedOnlyConfig interface {
 	EthTxReaperThreshold() time.Duration
 	EthTxResendAfterThreshold() time.Duration
 	EvmFinalityDepth() uint32
+	EvmFinalityTag() bool
 	EvmGasBumpPercent() uint16
 	EvmGasBumpThreshold() uint64
 	EvmGasBumpTxDepth() uint16
@@ -49,7 +50,7 @@ type ChainScopedOnlyConfig interface {
 	EvmGasPriceDefault() *assets.Wei
 	EvmGasTipCapDefault() *assets.Wei
 	EvmGasTipCapMinimum() *assets.Wei
-	EvmHeadTrackerHistoryDepth() uint32
+	EvmHeadTrackerTotalHeadsLimit() uint32
 	EvmHeadTrackerMaxBufferSize() uint32
 	EvmHeadTrackerSamplingInterval() time.Duration
 	EvmLogBackfillBatchSize() uint32

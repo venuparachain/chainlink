@@ -16,6 +16,10 @@ type Head interface {
 	// EarliestInChain traverses through parents until it finds the earliest one
 	EarliestHeadInChain() Head
 
+	// LatestFinalizedBlock traverses through parents until it finds the latest finalized block.
+	// In case there isn't one, returns nil
+	LatestFinalizedBlock() Head
+
 	// Hash is the head's block hash
 	BlockHash() common.Hash
 

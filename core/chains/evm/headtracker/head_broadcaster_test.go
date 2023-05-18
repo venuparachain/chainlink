@@ -68,7 +68,7 @@ func TestHeadBroadcaster_Subscribe(t *testing.T) {
 
 	hb := headtracker.NewHeadBroadcaster(logger)
 	orm := headtracker.NewORM(db, logger, cfg, *ethClient.ConfiguredChainID())
-	hs := headtracker.NewHeadSaver(logger, orm, evmCfg)
+	hs := headtracker.NewHeadSaver(logger, orm, evmCfg, ethClient)
 	mailMon := utils.NewMailboxMonitor(t.Name())
 	ht := headtracker.NewHeadTracker(logger, ethClient, evmCfg, hb, hs, mailMon)
 	var ms services.MultiStart

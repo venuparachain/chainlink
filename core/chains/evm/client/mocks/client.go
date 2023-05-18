@@ -471,6 +471,32 @@ func (_m *Client) LINKBalance(ctx context.Context, address common.Address, linkA
 	return r0, r1
 }
 
+// LatestBlockByType provides a mock function with given fields: ctx, finalityType
+func (_m *Client) LatestBlockByType(ctx context.Context, finalityType string) (*evmtypes.Head, error) {
+	ret := _m.Called(ctx, finalityType)
+
+	var r0 *evmtypes.Head
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*evmtypes.Head, error)); ok {
+		return rf(ctx, finalityType)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *evmtypes.Head); ok {
+		r0 = rf(ctx, finalityType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*evmtypes.Head)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, finalityType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // LatestBlockHeight provides a mock function with given fields: _a0
 func (_m *Client) LatestBlockHeight(_a0 context.Context) (*big.Int, error) {
 	ret := _m.Called(_a0)

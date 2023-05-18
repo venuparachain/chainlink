@@ -8,7 +8,8 @@ import "time"
 type Config interface {
 	BlockEmissionIdleWarningThreshold() time.Duration
 	EvmFinalityDepth() uint32
-	EvmHeadTrackerHistoryDepth() uint32
+	EvmFinalityTag() bool
+	EvmHeadTrackerTotalHeadsLimit() uint32
 	EvmHeadTrackerMaxBufferSize() uint32
 	EvmHeadTrackerSamplingInterval() time.Duration
 }

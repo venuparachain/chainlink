@@ -127,6 +127,10 @@ func (c *ChainScoped) EvmFinalityDepth() uint32 {
 	return *c.cfg.FinalityDepth
 }
 
+func (c *ChainScoped) EvmFinalityTag() bool {
+	return *c.cfg.FinalityTag
+}
+
 func (c *ChainScoped) EvmGasBumpPercent() uint16 {
 	return *c.cfg.GasEstimator.BumpPercent
 }
@@ -204,8 +208,8 @@ func (c *ChainScoped) EvmGasTipCapMinimum() *assets.Wei {
 	return c.cfg.GasEstimator.TipCapMin
 }
 
-func (c *ChainScoped) EvmHeadTrackerHistoryDepth() uint32 {
-	return *c.cfg.HeadTracker.HistoryDepth
+func (c *ChainScoped) EvmHeadTrackerTotalHeadsLimit() uint32 {
+	return *c.cfg.HeadTracker.TotalHeadsLimit
 }
 
 func (c *ChainScoped) EvmHeadTrackerMaxBufferSize() uint32 {

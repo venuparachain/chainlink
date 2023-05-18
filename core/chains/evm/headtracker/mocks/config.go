@@ -41,15 +41,15 @@ func (_m *Config) EvmFinalityDepth() uint32 {
 	return r0
 }
 
-// EvmHeadTrackerHistoryDepth provides a mock function with given fields:
-func (_m *Config) EvmHeadTrackerHistoryDepth() uint32 {
+// EvmFinalityTag provides a mock function with given fields:
+func (_m *Config) EvmFinalityTag() bool {
 	ret := _m.Called()
 
-	var r0 uint32
-	if rf, ok := ret.Get(0).(func() uint32); ok {
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(uint32)
+		r0 = ret.Get(0).(bool)
 	}
 
 	return r0
@@ -78,6 +78,20 @@ func (_m *Config) EvmHeadTrackerSamplingInterval() time.Duration {
 		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(time.Duration)
+	}
+
+	return r0
+}
+
+// EvmHeadTrackerTotalHeadsLimit provides a mock function with given fields:
+func (_m *Config) EvmHeadTrackerTotalHeadsLimit() uint32 {
+	ret := _m.Called()
+
+	var r0 uint32
+	if rf, ok := ret.Get(0).(func() uint32); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(uint32)
 	}
 
 	return r0

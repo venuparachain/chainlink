@@ -321,6 +321,7 @@ type Chain struct {
 	BlockBackfillSkip        *bool
 	ChainType                *string
 	FinalityDepth            *uint32
+	FinalityTag              *bool
 	FlagsContractAddress     *ethkey.EIP55Address
 	LinkContractAddress      *ethkey.EIP55Address
 	LogBackfillBatchSize     *uint32
@@ -375,13 +376,15 @@ func (c *Chain) ValidateConfig() (err error) {
 		err = multierr.Append(err, v2.ErrInvalid{Name: "GasEstimator.BumpTxDepth", Value: *c.GasEstimator.BumpTxDepth,
 			Msg: "must be less than or equal to Transactions.MaxInFlight"})
 	}
-	if *c.HeadTracker.HistoryDepth < *c.FinalityDepth {
-		err = multierr.Append(err, v2.ErrInvalid{Name: "HeadTracker.HistoryDepth", Value: *c.HeadTracker.HistoryDepth,
-			Msg: "must be equal to or reater than FinalityDepth"})
-	}
-	if *c.FinalityDepth < 1 {
-		err = multierr.Append(err, v2.ErrInvalid{Name: "FinalityDepth", Value: *c.FinalityDepth,
-			Msg: "must be greater than or equal to 1"})
+	if !*c.FinalityTag {
+		if *c.HeadTracker.TotalHeadsLimit < *c.FinalityDepth {
+			err = multierr.Append(err, v2.ErrInvalid{Name: "HeadTracker.TotalHeadsLimit", Value: *c.HeadTracker.TotalHeadsLimit,
+				Msg: "must be equal to or greater than FinalityDepth"})
+		}
+		if *c.FinalityDepth < 1 {
+			err = multierr.Append(err, v2.ErrInvalid{Name: "FinalityDepth", Value: *c.FinalityDepth,
+				Msg: "must be greater than or equal to 1"})
+		}
 	}
 	if *c.MinIncomingConfirmations < 1 {
 		err = multierr.Append(err, v2.ErrInvalid{Name: "MinIncomingConfirmations", Value: *c.MinIncomingConfirmations,
@@ -653,14 +656,14 @@ func (e *KeySpecificGasEstimator) setFrom(f *KeySpecificGasEstimator) {
 }
 
 type HeadTracker struct {
-	HistoryDepth     *uint32
-	MaxBufferSize    *uint32
-	SamplingInterval *models.Duration
+	TotalHeadsLimit *uint32
+	MaxBufferSize              *uint32
+	SamplingInterval           *models.Duration
 }
 
 func (t *HeadTracker) setFrom(f *HeadTracker) {
-	if v := f.HistoryDepth; v != nil {
-		t.HistoryDepth = v
+	if v := f.TotalHeadsLimit; v != nil {
+		t.TotalHeadsLimit = v
 	}
 	if v := f.MaxBufferSize; v != nil {
 		t.MaxBufferSize = v

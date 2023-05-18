@@ -67,6 +67,11 @@ func (nc *NullClient) HeadByHash(ctx context.Context, h common.Hash) (*evmtypes.
 	return nil, nil
 }
 
+func (nc *NullClient) LatestBlockByType(ctx context.Context, finalityType string) (*evmtypes.Head, error) {
+	nc.lggr.Debug("LatestBlockByType")
+	return nil, nil
+}
+
 type nullSubscription struct {
 	lggr logger.Logger
 }

@@ -55,6 +55,7 @@ type Client interface {
 	HeadByNumber(ctx context.Context, n *big.Int) (*evmtypes.Head, error)
 	HeadByHash(ctx context.Context, n common.Hash) (*evmtypes.Head, error)
 	SubscribeNewHead(ctx context.Context, ch chan<- *evmtypes.Head) (ethereum.Subscription, error)
+	LatestBlockByType(ctx context.Context, finalityType string) (*evmtypes.Head, error)
 
 	SendTransactionReturnCode(ctx context.Context, tx *types.Transaction, fromAddress common.Address) (clienttypes.SendTxReturnCode, error)
 
@@ -330,6 +331,19 @@ func (client *client) LatestBlockHeight(ctx context.Context) (*big.Int, error) {
 	var height *big.Int
 	h, err := client.pool.BlockNumber(ctx)
 	return height.SetUint64(h), err
+}
+
+func (client *client) LatestBlockByType(ctx context.Context, finalityType string) (*evmtypes.Head, error) {
+	var head *evmtypes.Head
+	var err error
+	err = client.CallContext(ctx, &head, "eth_getBlockByNumber", finalityType, false)
+	if err != nil {
+		return nil, err
+	}
+	if head == nil {
+		err = ethereum.NotFound
+	}
+	return head, err
 }
 
 func (client *client) HeadByNumber(ctx context.Context, number *big.Int) (head *evmtypes.Head, err error) {
