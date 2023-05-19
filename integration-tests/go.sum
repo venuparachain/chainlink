@@ -1354,6 +1354,8 @@ github.com/smartcontractkit/libocr v0.0.0-20230413082317-9561d14087cc h1:aSCDAai
 github.com/smartcontractkit/libocr v0.0.0-20230413082317-9561d14087cc/go.mod h1:5JnCHuYgmIP9ZyXzgAfI5Iwu0WxBtBKp+ApeT5o1Cjw=
 github.com/smartcontractkit/ocr2keepers v0.6.16-0.20230518131745-339441807015 h1:3vANx5MnvLTh3G7J28g1/El/3fV6fxmFdrbmXQFTV/E=
 github.com/smartcontractkit/ocr2keepers v0.6.16-0.20230518131745-339441807015/go.mod h1:2NMU43Xp6RpxIlv7XtNQqfv9Yo6ClRzYCAnu8+Bwaek=
+github.com/smartcontractkit/ocr2keepers v0.6.16-0.20230519171554-acf771f92045 h1:A3o6PzVKzzWIoBIgr4SuEZfWz9VAV5NKcOH2kPeBsbQ=
+github.com/smartcontractkit/ocr2keepers v0.6.16-0.20230519171554-acf771f92045/go.mod h1:BhLNMHMB6KnKho0bH6OJGC2ny/TbcpKERnhb9j/7agY=
 github.com/smartcontractkit/ocr2vrf v0.0.0-20230510102715-c58be582bf19 h1:RxaC+V34UEP2u/riXfcvWPZEglri4UsfQi5joUObZ08=
 github.com/smartcontractkit/ocr2vrf v0.0.0-20230510102715-c58be582bf19/go.mod h1:AZbOisIoA3cOUku8suZ+KWBnzbRiafmhi7UKiXoezrk=
 github.com/smartcontractkit/sqlx v1.3.5-0.20210805004948-4be295aacbeb h1:OMaBUb4X9IFPLbGbCHsMU+kw/BPCrewaVwWGIBc0I4A=
