@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
 import {ConfirmedOwner} from "../ConfirmedOwner.sol";
@@ -442,10 +442,7 @@ contract Verifier is IVerifier, ConfirmedOwner, TypeAndVersionInterface {
       });
     }
 
-    // We need to manually set the verifier in the proxy
-    // the first time.
-    if (feedVerifierState.configCount > 1)
-      IVerifierProxy(i_verifierProxyAddr).setVerifier(feedVerifierState.latestConfigDigest, configDigest);
+    IVerifierProxy(i_verifierProxyAddr).setVerifier(feedVerifierState.latestConfigDigest, configDigest);
 
     emit ConfigSet(
       feedId,
@@ -465,30 +462,16 @@ contract Verifier is IVerifier, ConfirmedOwner, TypeAndVersionInterface {
     feedVerifierState.latestConfigDigest = configDigest;
   }
 
-  function latestConfigDigestAndEpoch(bytes32 feedId)
-    external
-    view
-    override
-    returns (
-      bool scanLogs,
-      bytes32 configDigest,
-      uint32 epoch
-    )
-  {
+  function latestConfigDigestAndEpoch(
+    bytes32 feedId
+  ) external view override returns (bool scanLogs, bytes32 configDigest, uint32 epoch) {
     VerifierState storage feedVerifierState = s_feedVerifierStates[feedId];
     return (false, feedVerifierState.latestConfigDigest, feedVerifierState.latestEpoch);
   }
 
-  function latestConfigDetails(bytes32 feedId)
-    external
-    view
-    override
-    returns (
-      uint32 configCount,
-      uint32 blockNumber,
-      bytes32 configDigest
-    )
-  {
+  function latestConfigDetails(
+    bytes32 feedId
+  ) external view override returns (uint32 configCount, uint32 blockNumber, bytes32 configDigest) {
     VerifierState storage feedVerifierState = s_feedVerifierStates[feedId];
     return (
       feedVerifierState.configCount,

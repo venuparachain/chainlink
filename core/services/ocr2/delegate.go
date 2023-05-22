@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	"time"
 
@@ -13,6 +14,10 @@ import (
 	libocr2 "github.com/smartcontractkit/libocr/offchainreporting2"
 	ocr2types "github.com/smartcontractkit/libocr/offchainreporting2/types"
 	ocr2keepers "github.com/smartcontractkit/ocr2keepers/pkg"
+	"github.com/smartcontractkit/ocr2keepers/pkg/coordinator"
+	"github.com/smartcontractkit/ocr2keepers/pkg/encoding"
+	"github.com/smartcontractkit/ocr2keepers/pkg/executer"
+	"github.com/smartcontractkit/ocr2keepers/pkg/observer/polling"
 	"github.com/smartcontractkit/ocr2vrf/altbn_128"
 	dkgpkg "github.com/smartcontractkit/ocr2vrf/dkg"
 	"github.com/smartcontractkit/ocr2vrf/ocr2vrf"
@@ -20,6 +25,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-relay/pkg/loop"
 	"github.com/smartcontractkit/chainlink-relay/pkg/types"
+
 	"github.com/smartcontractkit/chainlink/v2/core/chains/evm"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 	"github.com/smartcontractkit/chainlink/v2/core/services/job"
@@ -56,20 +62,33 @@ type Delegate struct {
 	peerWrapper           *ocrcommon.SingletonPeerWrapper
 	monitoringEndpointGen telemetry.MonitoringEndpointGenerator
 	chainSet              evm.ChainSet
-	cfg                   Config
+	cfg                   DelegateConfig
 	lggr                  logger.Logger
 	ks                    keystore.OCR2
 	dkgSignKs             keystore.DKGSign
 	dkgEncryptKs          keystore.DKGEncrypt
 	ethKs                 keystore.Eth
-	relayers              map[relay.Network]func() (loop.Relayer, error)
+	relayers              map[relay.Network]loop.Relayer
 	isNewlyCreatedJob     bool // Set to true if this is a new job freshly added, false if job was present already on node boot.
 	mailMon               *utils.MailboxMonitor
 }
 
-type Config interface {
+type DelegateConfig interface {
 	validate.Config
-	plugins.EnvConfig
+	plugins.RegistrarConfig
+}
+
+// concrete implementation of DelegateConfig so it can be explicitly composed
+type delegateConfig struct {
+	validate.Config
+	plugins.RegistrarConfig
+}
+
+func NewDelegateConfig(vc validate.Config, pluginProcessCfg plugins.RegistrarConfig) DelegateConfig {
+	return &delegateConfig{
+		Config:          vc,
+		RegistrarConfig: pluginProcessCfg,
+	}
 }
 
 var _ job.Delegate = (*Delegate)(nil)
@@ -82,12 +101,12 @@ func NewDelegate(
 	monitoringEndpointGen telemetry.MonitoringEndpointGenerator,
 	chainSet evm.ChainSet,
 	lggr logger.Logger,
-	cfg Config,
+	cfg DelegateConfig,
 	ks keystore.OCR2,
 	dkgSignKs keystore.DKGSign,
 	dkgEncryptKs keystore.DKGEncrypt,
 	ethKs keystore.Eth,
-	relayers map[relay.Network]func() (loop.Relayer, error),
+	relayers map[relay.Network]loop.Relayer,
 	mailMon *utils.MailboxMonitor,
 ) *Delegate {
 	return &Delegate{
@@ -200,14 +219,9 @@ func (d *Delegate) ServicesForSpec(jb job.Job) ([]job.ServiceCtx, error) {
 		return nil, errors.Errorf("expected a transmitterID to be specified")
 	}
 	transmitterID := spec.TransmitterID.String
-	relayerFn, exists := d.relayers[spec.Relay]
+	relayer, exists := d.relayers[spec.Relay]
 	if !exists {
 		return nil, errors.Errorf("%s relay does not exist is it enabled?", spec.Relay)
-	}
-	relayer, err := relayerFn()
-	if err != nil {
-		// TODO defer in order to retry https://smartcontract-it.atlassian.net/browse/BCF-2112
-		return nil, fmt.Errorf("failed to get relayer: %w", err)
 	}
 	effectiveTransmitterID := transmitterID
 
@@ -382,8 +396,9 @@ func (d *Delegate) ServicesForSpec(jb job.Job) ([]job.ServiceCtx, error) {
 		}
 		errorLog := &errorLog{jobID: jb.ID, recordError: d.jobORM.RecordError}
 		enhancedTelemChan := make(chan ocrcommon.EnhancedTelemetryData, 100)
+		mConfig := median.NewMedianConfig(d.cfg.JobPipelineMaxSuccessfulRuns(), d.cfg)
 
-		medianServices, err2 := median.NewMedianServices(ctx, jb, d.isNewlyCreatedJob, relayer, d.pipelineRunner, runResults, lggr, oracleArgsNoPlugin, d.cfg, enhancedTelemChan, errorLog)
+		medianServices, err2 := median.NewMedianServices(ctx, jb, d.isNewlyCreatedJob, relayer, d.pipelineRunner, runResults, lggr, oracleArgsNoPlugin, mConfig, enhancedTelemChan, errorLog)
 
 		if ocrcommon.ShouldCollectEnhancedTelemetry(&jb) {
 			enhancedTelemService := ocrcommon.NewEnhancedTelemetryService(&jb, enhancedTelemChan, make(chan struct{}), d.monitoringEndpointGen.GenMonitoringEndpoint(spec.ContractID, synchronization.EnhancedEA), lggr.Named("Enhanced Telemetry"))
@@ -621,12 +636,16 @@ func (d *Delegate) ServicesForSpec(jb job.Job) ([]job.ServiceCtx, error) {
 		if err2 != nil {
 			return nil, errors.Wrap(err2, "failed to get mercury credential name")
 		}
-		keeperProvider, rgstry, encoder, logProvider, err2 := ocr2keeper.EVMDependencies(jb, d.db, lggr, d.chainSet, d.pipelineRunner, d.cfg.MercuryCredentials(credName))
+
+		mc := d.cfg.MercuryCredentials(credName)
+
+		keeperProvider, rgstry, encoder, logProvider, err2 := ocr2keeper.EVMDependencies(jb, d.db, lggr, d.chainSet, d.pipelineRunner, mc)
 		if err2 != nil {
 			return nil, errors.Wrap(err2, "could not build dependencies for ocr2 keepers")
 		}
 
 		var cfg ocr2keeper.PluginConfig
+
 		err2 = json.Unmarshal(spec.PluginConfig.Bytes(), &cfg)
 		if err2 != nil {
 			return nil, errors.Wrap(err2, "unmarshal ocr2keepers plugin config")
@@ -635,6 +654,40 @@ func (d *Delegate) ServicesForSpec(jb job.Job) ([]job.ServiceCtx, error) {
 		err2 = ocr2keeper.ValidatePluginConfig(cfg)
 		if err2 != nil {
 			return nil, errors.Wrap(err2, "ocr2keepers plugin config validation failure")
+		}
+
+		type EVMEncoder struct {
+			encoding.KeyBuilder
+		}
+
+		w := &logWriter{log: lggr.Named("Automation Dependencies")}
+
+		exec, err2 := executer.NewExecuter(
+			log.New(w, "[automation-plugin-executer] ", log.Lshortfile),
+			rgstry,
+			encoder,
+			cfg.MaxServiceWorkers,
+			cfg.ServiceQueueLength,
+			cfg.CacheExpiration.Value(),
+			cfg.CacheEvictionInterval.Value(),
+		)
+		if err2 != nil {
+			return nil, errors.Wrap(err2, "failed to create automation pipeline executer")
+		}
+
+		condObs := &polling.PollingObserverFactory{
+			Logger:   log.New(w, "[automation-plugin-conditional-observer] ", log.Lshortfile),
+			Source:   rgstry,
+			Heads:    rgstry,
+			Executer: exec,
+			Encoder:  encoder,
+		}
+
+		coord := &coordinator.CoordinatorFactory{
+			Logger:     log.New(w, "[automation-plugin-coordinator] ", log.Lshortfile),
+			Encoder:    encoder,
+			Logs:       logProvider,
+			CacheClean: cfg.CacheEvictionInterval.Value(),
 		}
 
 		conf := ocr2keepers.DelegateConfig{
@@ -649,18 +702,19 @@ func (d *Delegate) ServicesForSpec(jb job.Job) ([]job.ServiceCtx, error) {
 			OffchainConfigDigester:       keeperProvider.OffchainConfigDigester(),
 			OffchainKeyring:              kb,
 			OnchainKeyring:               kb,
-			HeadSubscriber:               rgstry,
-			Registry:                     rgstry,
-			ReportEncoder:                encoder,
-			PerformLogProvider:           logProvider,
+			ConditionalObserverFactory:   condObs,
+			CoordinatorFactory:           coord,
+			Encoder:                      encoder,
+			Executer:                     exec,
 			CacheExpiration:              cfg.CacheExpiration.Value(),
 			CacheEvictionInterval:        cfg.CacheEvictionInterval.Value(),
 			MaxServiceWorkers:            cfg.MaxServiceWorkers,
 			ServiceQueueLength:           cfg.ServiceQueueLength,
 		}
+
 		pluginService, err2 := ocr2keepers.NewDelegate(conf)
 		if err2 != nil {
-			return nil, errors.Wrap(err, "could not create new keepers ocr2 delegate")
+			return []job.ServiceCtx{}, errors.Wrap(err, "could not create new keepers ocr2 delegate")
 		}
 
 		// RunResultSaver needs to be started first, so it's available
@@ -773,4 +827,14 @@ type errorLog struct {
 
 func (l *errorLog) SaveError(ctx context.Context, msg string) error {
 	return l.recordError(l.jobID, msg)
+}
+
+type logWriter struct {
+	log logger.Logger
+}
+
+func (l *logWriter) Write(p []byte) (n int, err error) {
+	l.log.Debug(string(p), nil)
+	n = len(p)
+	return
 }
