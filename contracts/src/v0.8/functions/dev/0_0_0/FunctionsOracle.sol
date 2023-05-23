@@ -24,7 +24,6 @@ contract FunctionsOracle is Initializable, IFunctionsOracle, OCR2BaseUpgradeable
   event UserCallbackError(bytes32 indexed requestId, string reason);
   event UserCallbackRawError(bytes32 indexed requestId, bytes lowLevelData);
   event InvalidRequestID(bytes32 indexed requestId);
-  event ResponseTransmitted(bytes32 indexed requestId, address transmitter);
 
   error EmptyRequestData();
   error InconsistentReportData();
@@ -137,7 +136,7 @@ contract FunctionsOracle is Initializable, IFunctionsOracle, OCR2BaseUpgradeable
    * @inheritdoc IFunctionsOracle
    */
   function getRequiredFee(
-    bytes calldata /* data */,
+    bytes calldata, /* data */
     IFunctionsBillingRegistry.RequestBilling memory /* billing */
   ) public pure override returns (uint96) {
     // NOTE: Optionally, compute additional fee split between nodes of the DON here
@@ -196,8 +195,8 @@ contract FunctionsOracle is Initializable, IFunctionsOracle, OCR2BaseUpgradeable
   function _afterSetConfig(uint8 _f, bytes memory _onchainConfig) internal override {}
 
   function _validateReport(
-    bytes32 /* configDigest */,
-    uint40 /* epochAndRound */,
+    bytes32, /* configDigest */
+    uint40, /* epochAndRound */
     bytes memory /* report */
   ) internal pure override returns (bool) {
     // validate within _report to save gas
@@ -244,7 +243,6 @@ contract FunctionsOracle is Initializable, IFunctionsOracle, OCR2BaseUpgradeable
       } catch (bytes memory reason) {
         emit UserCallbackRawError(requestIds[i], reason);
       }
-      emit ResponseTransmitted(requestIds[i], transmitter);
     }
   }
 
