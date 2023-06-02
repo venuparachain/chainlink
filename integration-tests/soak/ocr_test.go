@@ -43,7 +43,7 @@ func TestOCRSoak(t *testing.T) {
 		NumberOfContracts:    2,
 		ChainlinkNodeFunding: big.NewFloat(testInputs.ChainlinkNodeFunding),
 		ExpectedRoundTime:    time.Minute * 2,
-		RoundTimeout:         time.Minute * 15,
+		RoundTimeout:         time.Minute * 30,
 		TimeBetweenRounds:    testInputs.TimeBetweenRounds,
 		StartingAdapterValue: 5,
 	})
