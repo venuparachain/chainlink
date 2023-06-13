@@ -79,6 +79,7 @@ type ChainScopedOnlyConfig interface {
 type EVM interface {
 	BalanceMonitor() BalanceMonitor
 	Transactions() Transactions
+	GasEstimator() GasEstimator
 }
 
 type BalanceMonitor interface {
@@ -92,6 +93,20 @@ type Transactions interface {
 	ReaperThreshold() time.Duration
 	MaxInFlight() uint32
 	MaxQueued() uint64
+}
+
+type GasEstimator interface {
+	BlockHistory() BlockHistory
+}
+
+type BlockHistory interface {
+	BatchSize() uint32
+	BlockHistorySize() uint16
+	BlockDelay() uint16
+	CheckInclusionBlocks() uint16
+	CheckInclusionPercentile() uint16
+	EIP1559FeeCapBufferBlocks() uint16
+	TransactionPercentile() uint16
 }
 
 //go:generate mockery --quiet --name ChainScopedConfig --output ./mocks/ --case=underscore

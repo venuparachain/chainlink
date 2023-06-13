@@ -65,18 +65,19 @@ func NewEstimator(lggr logger.Logger, ethClient evmclient.Client, cfg Config) Ev
 		"maxGasPriceWei", cfg.EvmMaxGasPriceWei(),
 		"minGasPriceWei", cfg.EvmMinGasPriceWei(),
 	)
+	df := cfg.EvmEIP1559DynamicFees()
 	switch s {
 	case "Arbitrum":
-		return NewWrappedEvmEstimator(NewArbitrumEstimator(lggr, cfg, ethClient, ethClient), cfg)
+		return NewWrappedEvmEstimator(NewArbitrumEstimator(lggr, cfg, ethClient, ethClient), df)
 	case "BlockHistory":
-		return NewWrappedEvmEstimator(NewBlockHistoryEstimator(lggr, ethClient, cfg, *ethClient.ConfiguredChainID()), cfg)
+		return NewWrappedEvmEstimator(NewBlockHistoryEstimator(lggr, ethClient, cfg, *ethClient.ConfiguredChainID()), df)
 	case "FixedPrice":
-		return NewWrappedEvmEstimator(NewFixedPriceEstimator(cfg, lggr), cfg)
-	case "L2Suggested":
-		return NewWrappedEvmEstimator(NewL2SuggestedPriceEstimator(lggr, ethClient), cfg)
+		return NewWrappedEvmEstimator(NewFixedPriceEstimator(cfg, lggr), df)
+	case "Optimism2", "L2Suggested":
+		return NewWrappedEvmEstimator(NewL2SuggestedPriceEstimator(lggr, ethClient), df)
 	default:
 		lggr.Warnf("GasEstimator: unrecognised mode '%s', falling back to FixedPriceEstimator", s)
-		return NewWrappedEvmEstimator(NewFixedPriceEstimator(cfg, lggr), cfg)
+		return NewWrappedEvmEstimator(NewFixedPriceEstimator(cfg, lggr), df)
 	}
 }
 
@@ -149,10 +150,10 @@ type WrappedEvmEstimator struct {
 
 var _ EvmFeeEstimator = (*WrappedEvmEstimator)(nil)
 
-func NewWrappedEvmEstimator(e EvmEstimator, cfg Config) EvmFeeEstimator {
+func NewWrappedEvmEstimator(e EvmEstimator, eip1559Enabled bool) EvmFeeEstimator {
 	return &WrappedEvmEstimator{
 		EvmEstimator:   e,
-		EIP1559Enabled: cfg.EvmEIP1559DynamicFees(),
+		EIP1559Enabled: eip1559Enabled,
 	}
 }
 

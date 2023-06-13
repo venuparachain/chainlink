@@ -39,8 +39,8 @@ func TestWrappedEvmEstimator(t *testing.T) {
 	// GetFee returns gas estimation based on configuration value
 	t.Run("GetFee", func(t *testing.T) {
 		// expect legacy fee data
-		cfg.On("EvmEIP1559DynamicFees").Return(false).Once()
-		estimator := gas.NewWrappedEvmEstimator(e, cfg)
+		dynamicFees := false
+		estimator := gas.NewWrappedEvmEstimator(e, dynamicFees)
 		fee, max, err := estimator.GetFee(ctx, nil, 0, nil)
 		require.NoError(t, err)
 		assert.Equal(t, gasLimit, max)
@@ -50,7 +50,7 @@ func TestWrappedEvmEstimator(t *testing.T) {
 
 		// expect dynamic fee data
 		cfg.On("EvmEIP1559DynamicFees").Return(true).Once()
-		estimator = gas.NewWrappedEvmEstimator(e, cfg)
+		estimator = gas.NewWrappedEvmEstimator(e, dynamicFees)
 		fee, max, err = estimator.GetFee(ctx, nil, 0, nil)
 		require.NoError(t, err)
 		assert.Equal(t, gasLimit, max)
@@ -61,8 +61,8 @@ func TestWrappedEvmEstimator(t *testing.T) {
 
 	// BumpFee returns bumped fee type based on original fee calculation
 	t.Run("BumpFee", func(t *testing.T) {
-		cfg.On("EvmEIP1559DynamicFees").Return(false).Once().Maybe()
-		estimator := gas.NewWrappedEvmEstimator(e, cfg)
+		dynamicFees := false
+		estimator := gas.NewWrappedEvmEstimator(e, dynamicFees)
 
 		// expect legacy fee data
 		fee, max, err := estimator.BumpFee(ctx, gas.EvmFee{Legacy: assets.NewWeiI(0)}, 0, nil, nil)

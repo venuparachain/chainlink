@@ -69,6 +69,10 @@ func (e *evmConfig) Transactions() config.Transactions {
 	return &transactionsConfig{c: e.c.Transactions}
 }
 
+func (e *evmConfig) GasEstimator() config.GasEstimator {
+	return &gasEstimatorConfig{c: e.c.GasEstimator, blockDelay: e.c.RPCBlockQueryDelay}
+}
+
 func (c *ChainScoped) EVM() config.EVM {
 	return &evmConfig{c: c.cfg}
 }
@@ -91,6 +95,48 @@ type balanceMonitorConfig struct {
 
 func (b *balanceMonitorConfig) Enabled() bool {
 	return *b.c.Enabled
+}
+
+type blockHistoryConfig struct {
+	c          BlockHistoryEstimator
+	blockDelay *uint16
+}
+
+func (b *blockHistoryConfig) BatchSize() uint32 {
+	return *b.c.BatchSize
+}
+
+func (b *blockHistoryConfig) BlockHistorySize() uint16 {
+	return *b.c.BlockHistorySize
+}
+
+func (b *blockHistoryConfig) CheckInclusionBlocks() uint16 {
+	return *b.c.CheckInclusionBlocks
+}
+
+func (b *blockHistoryConfig) CheckInclusionPercentile() uint16 {
+	return *b.c.CheckInclusionPercentile
+}
+
+func (b *blockHistoryConfig) EIP1559FeeCapBufferBlocks() uint16 {
+	return *b.c.EIP1559FeeCapBufferBlocks
+}
+
+func (b *blockHistoryConfig) TransactionPercentile() uint16 {
+	return *b.c.TransactionPercentile
+}
+
+func (b *blockHistoryConfig) BlockDelay() uint16 {
+	return *b.blockDelay
+}
+
+type gasEstimatorConfig struct {
+	c          GasEstimator
+	blockDelay *uint16
+}
+
+func (g *gasEstimatorConfig) BlockHistory() config.BlockHistory {
+	return &blockHistoryConfig{c: g.c.BlockHistory, blockDelay: g.blockDelay}
 }
 
 func (c *ChainScoped) BlockEmissionIdleWarningThreshold() time.Duration {
