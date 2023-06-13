@@ -134,7 +134,7 @@ func Test_FixedPriceEstimator(t *testing.T) {
 		fee, gasLimit, err := f.BumpDynamicFee(testutils.Context(t), originalFee, 100000, maxGasPrice, nil)
 		require.NoError(t, err)
 
-		expectedFee, expectedGasLimit, err := gas.BumpDynamicFeeOnly(config, lggr, nil, nil, originalFee, 100000, maxGasPrice)
+		expectedFee, expectedGasLimit, err := gas.BumpDynamicFeeOnly(config, config.BlockHistoryEstimatorEIP1559FeeCapBufferBlocks(), lggr, nil, nil, originalFee, 100000, maxGasPrice)
 		require.NoError(t, err)
 
 		assert.Equal(t, expectedGasLimit, gasLimit)

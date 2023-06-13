@@ -48,7 +48,7 @@ func newConfigWithEIP1559DynamicFeesDisabled(t *testing.T) *gas.MockConfig {
 }
 
 func newBlockHistoryEstimatorWithChainID(t *testing.T, c evmclient.Client, cfg gas.Config, cid big.Int) gas.EvmEstimator {
-	return gas.NewBlockHistoryEstimator(logger.TestLogger(t), c, cfg, cid)
+	return gas.NewBlockHistoryEstimator(logger.TestLogger(t), c, cfg, cfg.EVM().GasEstimator().BlockHistory(), cid)
 }
 
 func newBlockHistoryEstimator(t *testing.T, c evmclient.Client, cfg gas.Config) *gas.BlockHistoryEstimator {
@@ -1840,7 +1840,7 @@ func TestBlockHistoryEstimator_CheckConnectivity(t *testing.T) {
 	cfg.BlockHistoryEstimatorCheckInclusionBlocksF = uint16(4)
 	lggr, obs := logger.TestLoggerObserved(t, zapcore.DebugLevel)
 	bhe := gas.BlockHistoryEstimatorFromInterface(
-		gas.NewBlockHistoryEstimator(lggr, nil, cfg, *testutils.NewRandomEVMChainID()),
+		gas.NewBlockHistoryEstimator(lggr, nil, cfg, cfg, *testutils.NewRandomEVMChainID()),
 	)
 
 	attempts := []gas.EvmPriorAttempt{
