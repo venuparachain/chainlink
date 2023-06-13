@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,12 +25,15 @@ import (
 	"github.com/smartcontractkit/libocr/commontypes"
 	"github.com/smartcontractkit/libocr/offchainreporting2plus/confighelper"
 	ocrTypes "github.com/smartcontractkit/libocr/offchainreporting2plus/types"
+	ocr2keepers "github.com/smartcontractkit/ocr2keepers/pkg"
 	"github.com/smartcontractkit/ocr2keepers/pkg/config"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/umbracle/ethgo/abi"
 
 	"github.com/smartcontractkit/chainlink/v2/core/assets"
+	evmclient "github.com/smartcontractkit/chainlink/v2/core/chains/evm/client"
 	"github.com/smartcontractkit/chainlink/v2/core/chains/evm/forwarders"
 	"github.com/smartcontractkit/chainlink/v2/core/chains/evm/logpoller"
 	v2 "github.com/smartcontractkit/chainlink/v2/core/config/v2"
@@ -37,10 +42,12 @@ import (
 	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/generated/keeper_registry_logic2_0"
 	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/generated/keeper_registry_wrapper2_0"
 	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/generated/link_token_interface"
+	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/generated/log_upkeep_counter_wrapper"
 	"github.com/smartcontractkit/chainlink/v2/core/gethwrappers/generated/mock_v3_aggregator_contract"
 	"github.com/smartcontractkit/chainlink/v2/core/internal/cltest"
 	"github.com/smartcontractkit/chainlink/v2/core/internal/cltest/heavyweight"
 	"github.com/smartcontractkit/chainlink/v2/core/internal/testutils"
+	"github.com/smartcontractkit/chainlink/v2/core/internal/testutils/pgtest"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 	"github.com/smartcontractkit/chainlink/v2/core/services/chainlink"
 	"github.com/smartcontractkit/chainlink/v2/core/services/job"
@@ -49,6 +56,7 @@ import (
 	"github.com/smartcontractkit/chainlink/v2/core/services/keystore/keys/ocr2key"
 	"github.com/smartcontractkit/chainlink/v2/core/services/keystore/keys/p2pkey"
 	"github.com/smartcontractkit/chainlink/v2/core/services/ocr2/plugins/ocr2keeper"
+	kevm "github.com/smartcontractkit/chainlink/v2/core/services/ocr2/plugins/ocr2keeper/evm"
 	"github.com/smartcontractkit/chainlink/v2/core/services/ocr2/validate"
 	"github.com/smartcontractkit/chainlink/v2/core/services/ocrbootstrap"
 	"github.com/smartcontractkit/chainlink/v2/core/services/pipeline"
@@ -747,4 +755,152 @@ func TestFilterNamesFromSpec21(t *testing.T) {
 	}
 	_, err = ocr2keeper.FilterNamesFromSpec21(spec)
 	require.ErrorContains(t, err, "not a valid EIP55 formatted address")
+}
+
+func TestIntegration_LogEventProvider(t *testing.T) {
+	sergey := testutils.MustNewSimTransactor(t) // owns all the link
+	steve := testutils.MustNewSimTransactor(t)  // registry owner
+	carrol := testutils.MustNewSimTransactor(t) // upkeep owner
+	genesisData := core.GenesisAlloc{
+		sergey.From: {Balance: assets.Ether(1000000000000000000).ToInt()},
+		steve.From:  {Balance: assets.Ether(1000000000000000000).ToInt()},
+		carrol.From: {Balance: assets.Ether(1000000000000000000).ToInt()},
+	}
+	backend := cltest.NewSimulatedBackend(t, genesisData, uint32(ethconfig.Defaults.Miner.GasCeil))
+	stopMining := cltest.Mine(backend, 3*time.Second) // Should be greater than deltaRound since we cannot access old blocks on simulated blockchain
+	defer stopMining()
+
+	_, db := heavyweight.FullTestDBV2(t, fmt.Sprintf("%s%d", "chainlink_test", 5432), func(c *chainlink.Config, s *chainlink.Secrets) {
+		c.Feature.LogPoller = ptr(true)
+
+		c.OCR.Enabled = ptr(false)
+		c.OCR2.Enabled = ptr(true)
+
+		c.EVM[0].Transactions.ForwardersEnabled = ptr(true)
+		c.EVM[0].GasEstimator.Mode = ptr("FixedPrice")
+	})
+	defer db.Close()
+
+	// cfg := pgtest.NewQConfig(false)
+	ethClient := evmclient.NewSimulatedBackendClient(t, backend, big.NewInt(1337))
+	lggr := logger.TestLogger(t)
+	ctx := testutils.Context(t)
+	lorm := logpoller.NewORM(big.NewInt(1337), db, lggr, pgtest.NewQConfig(false))
+	lp := logpoller.NewLogPoller(lorm, ethClient, lggr, 100*time.Millisecond, 1, 2, 2, 1000)
+
+	logProvider := kevm.NewLogEventProvider(lggr, lp)
+
+	n := 10
+
+	var ids []*big.Int
+	var contracts []*log_upkeep_counter_wrapper.LogUpkeepCounter
+	var contractsAddrs []common.Address
+	for i := 0; i < n; i++ {
+		upkeepAddr, _, upkeepContract, err := log_upkeep_counter_wrapper.DeployLogUpkeepCounter(
+			carrol, backend,
+			big.NewInt(100000),
+		)
+		require.NoError(t, err)
+		backend.Commit()
+
+		contracts = append(contracts, upkeepContract)
+		contractsAddrs = append(contractsAddrs, upkeepAddr)
+		// logTriggerConfigType := abi.MustNewType("tuple(address contractAddress, uint8 filterSelector, bytes32 topic0, bytes32 topic1, bytes32 topic2, bytes32 topic3)")
+		// logTriggerConfig, err := abi.Encode(map[string]interface{}{
+		// 	"contractAddress": upkeepAddr,
+		// 	"filterSelector":  0,                                                                    // no indexed topics filtered
+		// 	"topic0":          "0x3d53a39550e04688065827f3bb86584cb007ab9ebca7ebd528e7301c9c31eb5d", // event sig for Trigger()
+		// 	"topic1":          "0x",
+		// 	"topic2":          "0x",
+		// 	"topic3":          "0x",
+		// }, logTriggerConfigType)
+
+		// creating some dummy upkeepID to register filter
+		upkeepID := ocr2keepers.UpkeepIdentifier(append(common.LeftPadBytes([]byte{1}, 16), upkeepAddr[:16]...))
+		id := big.NewInt(0).SetBytes(upkeepID)
+		ids = append(ids, id)
+		err = logProvider.RegisterFilter(id, kevm.LogTriggerConfig{
+			ContractAddress: upkeepAddr,
+			FilterSelector:  0,
+			Topic0:          common.HexToHash("0x3d53a39550e04688065827f3bb86584cb007ab9ebca7ebd528e7301c9c31eb5d"),
+		})
+		require.NoError(t, err)
+	}
+
+	lp.PollAndSaveLogs(ctx, int64(n))
+
+	logsRounds := 5
+	polledCn := make(chan bool, logsRounds)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		lctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		var blockHash common.Hash
+		rounds := logsRounds
+		for rounds > 0 && lctx.Err() == nil {
+			rounds--
+			for i, upkeepContract := range contracts {
+				if lctx.Err() != nil {
+					return
+				}
+				_, err := upkeepContract.Start(carrol)
+				require.NoError(t, err)
+				if i%2 == 0 {
+					blockHash = backend.Commit()
+				}
+			}
+			if rounds%2 != 0 {
+				continue
+			}
+			b, err := ethClient.BlockByHash(lctx, blockHash)
+			require.NoError(t, err)
+			bn := b.Number()
+			lp.PollAndSaveLogs(lctx, bn.Int64())
+			polledCn <- true
+			lggr.Debugw("polled events", "block", bn.Int64())
+		}
+		b, err := ethClient.BlockByHash(lctx, blockHash)
+		require.NoError(t, err)
+		bn := b.Number()
+		lp.PollAndSaveLogs(lctx, bn.Int64())
+		lggr.Debugw("polled events", "block", bn.Int64())
+		polledCn <- true
+		// let it more time to get logs in the other goroutine before we close
+		<-time.After(time.Second)
+		polledCn <- false
+	}()
+
+	var collectedLogs int64
+	go func() {
+		lctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		for {
+			select {
+			case <-lctx.Done():
+				return
+			case ok := <-polledCn:
+				if !ok {
+					return
+				}
+				logs, err := logProvider.GetLogs(ctx, ids...)
+				require.NoError(t, err)
+				// lggr.Debugw("got logs", "logs", logs)
+				n := 0
+				for _, l := range logs {
+					n += len(l)
+				}
+				atomic.AddInt64(&collectedLogs, int64(n))
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	require.GreaterOrEqual(t, atomic.LoadInt64(&collectedLogs), int64(n), "didn't polled logs")
 }
