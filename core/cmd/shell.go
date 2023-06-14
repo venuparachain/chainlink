@@ -99,7 +99,7 @@ type Shell struct {
 
 	configFiles      []string
 	configFilesIsSet bool
-	secretsFile      string
+	secretsFiles     []string
 	secretsFileIsSet bool
 }
 
