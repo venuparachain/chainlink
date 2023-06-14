@@ -56,7 +56,7 @@ import (
 	"github.com/smartcontractkit/chainlink/v2/core/services/keystore/keys/ocr2key"
 	"github.com/smartcontractkit/chainlink/v2/core/services/keystore/keys/p2pkey"
 	"github.com/smartcontractkit/chainlink/v2/core/services/ocr2/plugins/ocr2keeper"
-	kevm "github.com/smartcontractkit/chainlink/v2/core/services/ocr2/plugins/ocr2keeper/evm"
+	kevm21 "github.com/smartcontractkit/chainlink/v2/core/services/ocr2/plugins/ocr2keeper/evm21"
 	"github.com/smartcontractkit/chainlink/v2/core/services/ocr2/validate"
 	"github.com/smartcontractkit/chainlink/v2/core/services/ocrbootstrap"
 	"github.com/smartcontractkit/chainlink/v2/core/services/pipeline"
@@ -788,7 +788,7 @@ func TestIntegration_LogEventProvider(t *testing.T) {
 	lorm := logpoller.NewORM(big.NewInt(1337), db, lggr, pgtest.NewQConfig(false))
 	lp := logpoller.NewLogPoller(lorm, ethClient, lggr, 100*time.Millisecond, 1, 2, 2, 1000)
 
-	logProvider := kevm.NewLogEventProvider(lggr, lp)
+	logProvider := kevm21.NewLogEventProvider(lggr, lp)
 
 	n := 10
 
@@ -819,7 +819,7 @@ func TestIntegration_LogEventProvider(t *testing.T) {
 		upkeepID := ocr2keepers.UpkeepIdentifier(append(common.LeftPadBytes([]byte{1}, 16), upkeepAddr[:16]...))
 		id := big.NewInt(0).SetBytes(upkeepID)
 		ids = append(ids, id)
-		err = logProvider.RegisterFilter(id, kevm.LogTriggerConfig{
+		err = logProvider.RegisterFilter(id, kevm21.LogTriggerConfig{
 			ContractAddress: upkeepAddr,
 			FilterSelector:  0,
 			Topic0:          common.HexToHash("0x3d53a39550e04688065827f3bb86584cb007ab9ebca7ebd528e7301c9c31eb5d"),
