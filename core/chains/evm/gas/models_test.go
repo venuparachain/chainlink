@@ -25,7 +25,6 @@ func TestWrappedEvmEstimator(t *testing.T) {
 		TipCap: assets.NewWeiI(21),
 	}
 
-	cfg := mocks.NewConfig(t)
 	e := mocks.NewEvmEstimator(t)
 	e.On("GetDynamicFee", mock.Anything, mock.Anything, mock.Anything).
 		Return(dynamicFee, gasLimit, nil).Once()
@@ -49,7 +48,7 @@ func TestWrappedEvmEstimator(t *testing.T) {
 		assert.Nil(t, fee.DynamicFeeCap)
 
 		// expect dynamic fee data
-		cfg.On("EvmEIP1559DynamicFees").Return(true).Once()
+		dynamicFees = true
 		estimator = gas.NewWrappedEvmEstimator(e, dynamicFees)
 		fee, max, err = estimator.GetFee(ctx, nil, 0, nil)
 		require.NoError(t, err)

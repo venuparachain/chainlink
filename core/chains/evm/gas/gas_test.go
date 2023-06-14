@@ -322,14 +322,14 @@ func Test_BumpDynamicFeeOnly_HitsMaxError(t *testing.T) {
 
 	t.Run("tip cap hits max", func(t *testing.T) {
 		originalFee := gas.DynamicFee{TipCap: assets.GWei(30), FeeCap: assets.GWei(100)}
-		_, _, err := gas.BumpDynamicFeeOnly(cfg, cfg.BlockHistoryEstimatorEIP1559FeeCapBufferBlocks(), logger.TestLogger(t), nil, nil, originalFee, 42, maxGasPriceWei)
+		_, _, err := gas.BumpDynamicFeeOnly(cfg, 0, logger.TestLogger(t), nil, nil, originalFee, 42, maxGasPriceWei)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "bumped tip cap of 45 gwei would exceed configured max gas price of 40 gwei (original fee: tip cap 30 gwei, fee cap 100 gwei)")
 	})
 
 	t.Run("fee cap hits max", func(t *testing.T) {
 		originalFee := gas.DynamicFee{TipCap: assets.GWei(10), FeeCap: assets.GWei(100)}
-		_, _, err := gas.BumpDynamicFeeOnly(cfg, cfg.BlockHistoryEstimatorEIP1559FeeCapBufferBlocks(), logger.TestLogger(t), nil, nil, originalFee, 42, maxGasPriceWei)
+		_, _, err := gas.BumpDynamicFeeOnly(cfg, 0, logger.TestLogger(t), nil, nil, originalFee, 42, maxGasPriceWei)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "bumped fee cap of 150 gwei would exceed configured max gas price of 40 gwei (original fee: tip cap 10 gwei, fee cap 100 gwei)")
 	})

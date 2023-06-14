@@ -42,7 +42,7 @@ import (
 )
 
 func makeTestEvmTxm(
-	t *testing.T, db *sqlx.DB, ethClient evmclient.Client, cfg txmgr.Config, txConfig evmconfig.Transactions, dbConfig txmgr.DatabaseConfig, listenerConfig txmgr.ListenerConfig, keyStore keystore.Eth, eventBroadcaster pg.EventBroadcaster) (txmgr.EvmTxManager, error) {
+	t *testing.T, db *sqlx.DB, ethClient evmclient.Client, cfg evmconfig.ChainScopedConfig, txConfig evmconfig.Transactions, dbConfig txmgr.DatabaseConfig, listenerConfig txmgr.ListenerConfig, keyStore keystore.Eth, eventBroadcaster pg.EventBroadcaster) (txmgr.EvmTxManager, error) {
 	lggr := logger.TestLogger(t)
 	lp := logpoller.NewLogPoller(logpoller.NewORM(testutils.FixtureChainID, db, lggr, pgtest.NewQConfig(true)), ethClient, lggr, 100*time.Millisecond, 2, 3, 2, 1000)
 
@@ -56,7 +56,7 @@ func makeTestEvmTxm(
 	)
 
 	// build estimator from factory
-	estimator := gas.NewEstimator(lggr, ethClient, cfg)
+	estimator := gas.NewEstimator(lggr, ethClient, cfg, cfg.EVM().GasEstimator())
 
 	return txmgr.NewTxm(
 		db,

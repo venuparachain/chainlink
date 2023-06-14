@@ -98,8 +98,9 @@ func (b *balanceMonitorConfig) Enabled() bool {
 }
 
 type blockHistoryConfig struct {
-	c          BlockHistoryEstimator
-	blockDelay *uint16
+	c             BlockHistoryEstimator
+	blockDelay    *uint16
+	bumpThreshold *uint32
 }
 
 func (b *blockHistoryConfig) BatchSize() uint32 {
@@ -119,6 +120,9 @@ func (b *blockHistoryConfig) CheckInclusionPercentile() uint16 {
 }
 
 func (b *blockHistoryConfig) EIP1559FeeCapBufferBlocks() uint16 {
+	if b.c.EIP1559FeeCapBufferBlocks == nil {
+		return uint16(*b.bumpThreshold) + 1
+	}
 	return *b.c.EIP1559FeeCapBufferBlocks
 }
 
@@ -136,42 +140,11 @@ type gasEstimatorConfig struct {
 }
 
 func (g *gasEstimatorConfig) BlockHistory() config.BlockHistory {
-	return &blockHistoryConfig{c: g.c.BlockHistory, blockDelay: g.blockDelay}
+	return &blockHistoryConfig{c: g.c.BlockHistory, blockDelay: g.blockDelay, bumpThreshold: g.c.BumpThreshold}
 }
 
 func (c *ChainScoped) BlockEmissionIdleWarningThreshold() time.Duration {
 	return c.NodeNoNewHeadsThreshold()
-}
-
-func (c *ChainScoped) BlockHistoryEstimatorBatchSize() (size uint32) {
-	return *c.cfg.GasEstimator.BlockHistory.BatchSize
-}
-
-func (c *ChainScoped) BlockHistoryEstimatorBlockDelay() uint16 {
-	return *c.cfg.RPCBlockQueryDelay
-}
-
-func (c *ChainScoped) BlockHistoryEstimatorBlockHistorySize() uint16 {
-	return *c.cfg.GasEstimator.BlockHistory.BlockHistorySize
-}
-
-func (c *ChainScoped) BlockHistoryEstimatorCheckInclusionBlocks() uint16 {
-	return *c.cfg.GasEstimator.BlockHistory.CheckInclusionBlocks
-}
-
-func (c *ChainScoped) BlockHistoryEstimatorCheckInclusionPercentile() uint16 {
-	return *c.cfg.GasEstimator.BlockHistory.CheckInclusionPercentile
-}
-
-func (c *ChainScoped) BlockHistoryEstimatorEIP1559FeeCapBufferBlocks() uint16 {
-	if c.cfg.GasEstimator.BlockHistory.EIP1559FeeCapBufferBlocks == nil {
-		return uint16(c.EvmGasBumpThreshold()) + 1
-	}
-	return *c.cfg.GasEstimator.BlockHistory.EIP1559FeeCapBufferBlocks
-}
-
-func (c *ChainScoped) BlockHistoryEstimatorTransactionPercentile() uint16 {
-	return *c.cfg.GasEstimator.BlockHistory.TransactionPercentile
 }
 
 func (c *ChainScoped) EvmEIP1559DynamicFees() bool {

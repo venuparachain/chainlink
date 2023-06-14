@@ -19,13 +19,6 @@ type ChainScopedOnlyConfig interface {
 	BlockBackfillDepth() uint64
 	BlockBackfillSkip() bool
 	BlockEmissionIdleWarningThreshold() time.Duration
-	BlockHistoryEstimatorBatchSize() (size uint32)
-	BlockHistoryEstimatorBlockDelay() uint16
-	BlockHistoryEstimatorBlockHistorySize() uint16
-	BlockHistoryEstimatorCheckInclusionBlocks() uint16
-	BlockHistoryEstimatorCheckInclusionPercentile() uint16
-	BlockHistoryEstimatorEIP1559FeeCapBufferBlocks() uint16
-	BlockHistoryEstimatorTransactionPercentile() uint16
 	ChainID() *big.Int
 	EvmEIP1559DynamicFees() bool
 	EvmFinalityDepth() uint32

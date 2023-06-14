@@ -50,14 +50,15 @@ type gasEstimatorConfig interface {
 // NewEstimator returns the estimator for a given config
 func NewEstimator(lggr logger.Logger, ethClient evmclient.Client, cfg Config, geCfg gasEstimatorConfig) EvmFeeEstimator {
 
+	bh := geCfg.BlockHistory()
 	s := cfg.GasEstimatorMode()
 	lggr.Infow(fmt.Sprintf("Initializing EVM gas estimator in mode: %s", s),
 		"estimatorMode", s,
-		"batchSize", cfg.BlockHistoryEstimatorBatchSize(),
-		"blockDelay", cfg.BlockHistoryEstimatorBlockDelay(),
-		"blockHistorySize", cfg.BlockHistoryEstimatorBlockHistorySize(),
-		"eip1559FeeCapBufferBlocks", cfg.BlockHistoryEstimatorEIP1559FeeCapBufferBlocks(),
-		"transactionPercentile", cfg.BlockHistoryEstimatorTransactionPercentile(),
+		"batchSize", bh.BatchSize(),
+		"blockDelay", bh.BlockDelay(),
+		"blockHistorySize", bh.BlockHistorySize(),
+		"eip1559FeeCapBufferBlocks", bh.EIP1559FeeCapBufferBlocks(),
+		"transactionPercentile", bh.TransactionPercentile(),
 		"eip1559DynamicFees", cfg.EvmEIP1559DynamicFees(),
 		"gasBumpPercent", cfg.EvmGasBumpPercent(),
 		"gasBumpThreshold", cfg.EvmGasBumpThreshold(),
@@ -77,12 +78,12 @@ func NewEstimator(lggr logger.Logger, ethClient evmclient.Client, cfg Config, ge
 	case "BlockHistory":
 		return NewWrappedEvmEstimator(NewBlockHistoryEstimator(lggr, ethClient, cfg, geCfg.BlockHistory(), *ethClient.ConfiguredChainID()), df)
 	case "FixedPrice":
-		return NewWrappedEvmEstimator(NewFixedPriceEstimator(cfg, lggr), df)
+		return NewWrappedEvmEstimator(NewFixedPriceEstimator(cfg, geCfg.BlockHistory(), lggr), df)
 	case "Optimism2", "L2Suggested":
 		return NewWrappedEvmEstimator(NewL2SuggestedPriceEstimator(lggr, ethClient), df)
 	default:
 		lggr.Warnf("GasEstimator: unrecognised mode '%s', falling back to FixedPriceEstimator", s)
-		return NewWrappedEvmEstimator(NewFixedPriceEstimator(cfg, lggr), df)
+		return NewWrappedEvmEstimator(NewFixedPriceEstimator(cfg, geCfg.BlockHistory(), lggr), df)
 	}
 }
 
@@ -207,13 +208,6 @@ func (e WrappedEvmEstimator) BumpFee(ctx context.Context, originalFee EvmFee, fe
 //
 //go:generate mockery --quiet --name Config --output ./mocks/ --case=underscore
 type Config interface {
-	BlockHistoryEstimatorBatchSize() uint32
-	BlockHistoryEstimatorBlockDelay() uint16
-	BlockHistoryEstimatorBlockHistorySize() uint16
-	BlockHistoryEstimatorCheckInclusionPercentile() uint16
-	BlockHistoryEstimatorCheckInclusionBlocks() uint16
-	BlockHistoryEstimatorEIP1559FeeCapBufferBlocks() uint16
-	BlockHistoryEstimatorTransactionPercentile() uint16
 	ChainType() config.ChainType
 	EvmEIP1559DynamicFees() bool
 	EvmFinalityDepth() uint32
@@ -229,6 +223,10 @@ type Config interface {
 	EvmMaxGasPriceWei() *assets.Wei
 	EvmMinGasPriceWei() *assets.Wei
 	GasEstimatorMode() string
+}
+
+type BlockHistoryConfig interface {
+	evmconfig.BlockHistory
 }
 
 // Int64ToHex converts an int64 into go-ethereum's hex representation

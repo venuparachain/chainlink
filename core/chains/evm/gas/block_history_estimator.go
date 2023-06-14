@@ -91,16 +91,6 @@ type estimatorConfig interface {
 	bumpConfig
 }
 
-type estimatorBlockHistoryConfig interface {
-	BatchSize() uint32
-	BlockDelay() uint16
-	BlockHistorySize() uint16
-	CheckInclusionPercentile() uint16
-	CheckInclusionBlocks() uint16
-	TransactionPercentile() uint16
-	EIP1559FeeCapBufferBlocks() uint16
-}
-
 //go:generate mockery --quiet --name Config --output ./mocks/ --case=underscore
 type (
 	BlockHistoryEstimator struct {
@@ -108,7 +98,7 @@ type (
 		ethClient evmclient.Client
 		chainID   big.Int
 		config    estimatorConfig
-		bhConfig  estimatorBlockHistoryConfig
+		bhConfig  BlockHistoryConfig
 		// NOTE: it is assumed that blocks will be kept sorted by
 		// block number ascending
 		blocks    []evmtypes.Block
@@ -133,7 +123,7 @@ type (
 // NewBlockHistoryEstimator returns a new BlockHistoryEstimator that listens
 // for new heads and updates the base gas price dynamically based on the
 // configured percentile of gas prices in that block
-func NewBlockHistoryEstimator(lggr logger.Logger, ethClient evmclient.Client, cfg estimatorConfig, bhCfg estimatorBlockHistoryConfig, chainID big.Int) EvmEstimator {
+func NewBlockHistoryEstimator(lggr logger.Logger, ethClient evmclient.Client, cfg estimatorConfig, bhCfg BlockHistoryConfig, chainID big.Int) EvmEstimator {
 	ctx, cancel := context.WithCancel(context.Background())
 	b := &BlockHistoryEstimator{
 		ethClient: ethClient,
