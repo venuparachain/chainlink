@@ -38,12 +38,12 @@ jobs:
         run: mkdir -p core/web/assets && touch core/web/assets/index.html
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@7df0ce34898d659f95c0c4a09eaa8d4e32ee64db # v2.2.12
+        uses: github/codeql-action/init@489225d82a57396c6f426a40e66d461b16b3461d # v2.20.4
         with:
           languages: ${{ matrix.language }}
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@7df0ce34898d659f95c0c4a09eaa8d4e32ee64db # v2.2.12
+        uses: github/codeql-action/analyze@489225d82a57396c6f426a40e66d461b16b3461d # v2.20.4
 
       - name: Collect Metrics
         if: always()
